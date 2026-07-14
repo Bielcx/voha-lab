@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   Library,
   ListFilter,
+  LogOut,
   Menu,
   MessageCircle,
   Moon,
@@ -41,6 +42,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+
+import { createClient } from "@/lib/supabase/client";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
 type PostStatus = "Agendado" | "Aguardando aprovação" | "Rascunho" | "Publicado" | "Falhou";
@@ -155,7 +158,7 @@ function NumberTicker({ value, className = "" }: { value: number; className?: st
   return <strong className={`number-ticker ${className}`} aria-label={String(value)}><span aria-hidden="true">{displayValue}</span></strong>;
 }
 
-function Sidebar({ active, setActive, open, onClose }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void }) {
+function Sidebar({ active, setActive, open, onClose, onLogout }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void }) {
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="sidebar-head">
@@ -186,6 +189,7 @@ function Sidebar({ active, setActive, open, onClose }: { active: View; setActive
       <div className="sidebar-bottom">
         <button><CircleHelp size={17} /><span>Ajuda e atalhos</span></button>
         <button className={active === "settings" ? "active" : ""} onClick={() => setActive("settings")}><Settings size={17} /><span>Configurações</span></button>
+        <button onClick={onLogout}><LogOut size={17} /><span>Sair</span></button>
         <div className="storage"><span><ImageIcon size={14} /> Armazenamento</span><small>1,2 GB de 10 GB</small><i><b /></i></div>
       </div>
     </aside>
@@ -402,6 +406,11 @@ export default function HomePage() {
   const [active, setActive] = useState<View>("calendar");
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.assign("/login");
+  }
   const content = active === "dashboard" ? <DashboardView goTo={setActive} /> : active === "calendar" ? <CalendarView onCreate={() => setActive("creator")} /> : active === "creator" ? <CreatorView /> : active === "clients" ? <ClientsView /> : active === "media" ? <MediaView /> : active === "history" ? <HistoryView /> : <SettingsView dark={dark} setDark={setDark} />;
-  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={setActive} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => setActive("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={active}>{content}</div></div><MobileBottomNav active={active} setActive={setActive} onMore={() => setSidebarOpen(true)} /></div>;
+  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={setActive} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => setActive("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={active}>{content}</div></div><MobileBottomNav active={active} setActive={setActive} onMore={() => setSidebarOpen(true)} /></div>;
 }
