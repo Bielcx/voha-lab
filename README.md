@@ -41,4 +41,3 @@ npm run build
 
 - [Arquitetura e modelo de dados](docs/architecture.md)
 - [Custos, limites, alertas e continuidade](docs/costs-and-limits.md)
-- [Preparação para comercialização](docs/commercialization-readiness.md)
