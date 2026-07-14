@@ -40,7 +40,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
 type PostStatus = "Agendado" | "Aguardando aprovação" | "Rascunho" | "Publicado" | "Falhou";
@@ -91,8 +91,37 @@ const statusClass: Record<PostStatus, string> = {
   Falhou: "status-failed",
 };
 
+const pixelHeart = [
+  "031000130",
+  "111101111",
+  "111111111",
+  "112111211",
+  "011212110",
+  "001222100",
+  "000121000",
+  "000010000",
+];
+
+const pixelSpark = [
+  "0001000",
+  "0101010",
+  "0011100",
+  "1111111",
+  "0011100",
+  "0101010",
+  "0001000",
+];
+
+function PixelGrid({ pattern, className, label }: { pattern: string[]; className: string; label?: string }) {
+  return <span className={className} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true} style={{ "--pixel-cols": pattern[0].length } as CSSProperties}>{pattern.flatMap((row, rowIndex) => [...row].map((tone, columnIndex) => <i className={`pixel-tone-${tone}`} key={`${rowIndex}-${columnIndex}`} />))}</span>;
+}
+
+function PixelStatusMark({ status }: { status: PostStatus }) {
+  return <span className={`pixel-status-mark ${statusClass[status]}`} aria-hidden="true"><i /><i /><i /><i /></span>;
+}
+
 function BrandMark() {
-  return <div className="brand-mark" aria-hidden="true"><span>v</span></div>;
+  return <span className="brand-mark"><PixelGrid pattern={pixelHeart} className="pixel-heart" label="Voha" /></span>;
 }
 
 function Avatar({ name, color = "#B66A3C", size = "md" }: { name: string; color?: string; size?: "sm" | "md" | "lg" }) {
@@ -130,7 +159,7 @@ function Sidebar({ active, setActive, open, onClose }: { active: View; setActive
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="sidebar-head">
-        <button className="brand-button" onClick={() => setActive("dashboard")} aria-label="Ir para o início"><BrandMark /><span className="brand-name">Voha</span></button>
+        <button className="brand-button" onClick={() => setActive("dashboard")} aria-label="Ir para o início"><BrandMark /><span className="brand-name">voha</span></button>
         <button className="icon-button sidebar-close" onClick={onClose} aria-label="Fechar menu"><X size={18} /></button>
       </div>
       <button className="workspace-switcher">
@@ -167,7 +196,7 @@ function Topbar({ active, onMenu, onCreate, dark, setDark }: { active: View; onM
   const titles: Record<View, string> = { dashboard: "Visão geral", calendar: "Calendário", creator: "Novo conteúdo", clients: "Clientes", media: "Biblioteca", history: "Histórico", settings: "Configurações" };
   return (
     <header className="topbar">
-      <div className="topbar-title"><button className="icon-button mobile-menu" onClick={onMenu} aria-label="Abrir menu"><Menu size={19} /></button><span>{titles[active]}</span></div>
+      <div className="topbar-title"><button className="icon-button mobile-menu" onClick={onMenu} aria-label="Abrir menu"><Menu size={19} /></button><span className="mobile-top-brand"><BrandMark /><b>voha</b></span><span className="desktop-view-title">{titles[active]}</span></div>
       <div className="topbar-actions">
         <button className="search-button"><Search size={16} /><span>Buscar no Voha</span><kbd><Command size={11} /> K</kbd></button>
         <button className={`icon-button theme-toggle ${dark ? "is-dark" : ""}`} onClick={() => setDark(!dark)} aria-pressed={dark} aria-label={dark ? "Ativar modo claro" : "Ativar modo escuro"}><span>{dark ? <Sun size={18} /> : <Moon size={18} />}</span></button>
@@ -210,7 +239,7 @@ function DashboardView({ goTo }: { goTo: (view: View) => void }) {
             <div className="approval-card"><Avatar name="Alba Café" color="#B66A3C" size="sm" /><div><strong>Do grão à xícara</strong><span>Enviado há 2 horas</span></div><ChevronRight size={16} /></div>
             <div className="approval-card"><Avatar name="Flora Studio" color="#64825C" size="sm" /><div><strong>Novos vasos da coleção</strong><span>Enviado ontem</span></div><ChevronRight size={16} /></div>
           </section>
-          <section className="panel quick-panel magic-border"><div className="quick-icon"><Sparkles size={20} /></div><div><h2>Comece uma ideia</h2><p>Crie, revise e agende sem sair do fluxo.</p></div><button className="primary-button shine-button" onClick={() => goTo("creator")}><Plus size={16} /> Novo conteúdo</button></section>
+          <section className="panel quick-panel"><div className="quick-icon pixel-sprite-wrap"><PixelGrid pattern={pixelSpark} className="pixel-spark" label="Nova ideia" /></div><div><h2>Comece uma ideia</h2><p>Crie, revise e agende sem sair do fluxo.</p></div><button className="primary-button" onClick={() => goTo("creator")}><Plus size={16} /> Novo conteúdo</button></section>
         </aside>
       </div>
     </main>
@@ -221,6 +250,7 @@ function CalendarPost({ post }: { post: (typeof calendarPosts)[number] }) {
   return (
     <button className={`calendar-post ${statusClass[post.status]}`} title={`${post.title} — ${post.status}`}>
       {post.image ? <span className="calendar-thumb"><Image src={post.image} alt="" fill sizes="32px" /></span> : null}
+      <PixelStatusMark status={post.status} />
       <span className="calendar-post-copy"><strong>{post.time}</strong><span>{post.title}</span></span>
     </button>
   );
