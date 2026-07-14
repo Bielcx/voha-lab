@@ -37,4 +37,4 @@ npm run lint
 npm run build
 ```
 
-As decisões de arquitetura e o modelo de dados estão em [docs/architecture.md](docs/architecture.md).
+As decisões de arquitetura e o modelo de dados estão em [docs/architecture.md](docs/architecture.md). Custos, limites, alertas e procedimentos de continuidade estão em [docs/costs-and-limits.md](docs/costs-and-limits.md).
