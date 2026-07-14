@@ -44,6 +44,7 @@ import {
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import type { WorkspaceBootstrapResult, WorkspaceClientSummary } from "@/lib/types/workspace";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
 type PostStatus = "Agendado" | "Aguardando aprovação" | "Rascunho" | "Publicado" | "Falhou";
@@ -57,11 +58,11 @@ const navItems: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "history", label: "Histórico", icon: History },
 ];
 
-const clients = [
-  { name: "Alba Café", handle: "@albacafe", initials: "AC", color: "#B66A3C", posts: 8, status: "Conectado" },
-  { name: "Flora Studio", handle: "@florastudio", initials: "FS", color: "#64825C", posts: 5, status: "Conectado" },
-  { name: "Noma Skin", handle: "@nomaskin", initials: "NS", color: "#B87C7C", posts: 4, status: "Conectado" },
-  { name: "Sopro Yoga", handle: "@soproyoga", initials: "SY", color: "#7F77A8", posts: 3, status: "Reconectar" },
+const demoClients: WorkspaceClientSummary[] = [
+  { id: "demo-alba-cafe", name: "Alba Café", handle: "@albacafe", initials: "AC", color: "#B66A3C", posts: 8, published: 24, status: "Demo" },
+  { id: "demo-flora-studio", name: "Flora Studio", handle: "@florastudio", initials: "FS", color: "#64825C", posts: 5, published: 18, status: "Demo" },
+  { id: "demo-noma-skin", name: "Noma Skin", handle: "@nomaskin", initials: "NS", color: "#B87C7C", posts: 4, published: 15, status: "Demo" },
+  { id: "demo-sopro-yoga", name: "Sopro Yoga", handle: "@soproyoga", initials: "SY", color: "#7F77A8", posts: 3, published: 11, status: "Demo" },
 ];
 
 const media = [
@@ -158,7 +159,7 @@ function NumberTicker({ value, className = "" }: { value: number; className?: st
   return <strong className={`number-ticker ${className}`} aria-label={String(value)}><span aria-hidden="true">{displayValue}</span></strong>;
 }
 
-function Sidebar({ active, setActive, open, onClose, onLogout }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void }) {
+function Sidebar({ active, setActive, open, onClose, onLogout, clients }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void; clients: WorkspaceClientSummary[] }) {
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="sidebar-head">
@@ -353,8 +354,8 @@ function InstagramPreviewIcon() {
   return <span className="preview-icon" aria-hidden="true"><span /></span>;
 }
 
-function ClientsView() {
-  return <main className="view"><div className="page-heading"><div><span className="eyebrow">4 CONTAS GERENCIADAS</span><h1>Clientes</h1><p>Organize perfis e acompanhe a conexão com o Instagram.</p></div><button className="primary-button"><Plus size={16} /> Novo cliente</button></div><section className="client-grid">{clients.map((client, index) => <article className="client-card" key={client.name}><div className="client-cover" style={{ backgroundColor: `${client.color}20` }}><span style={{ backgroundColor: client.color }} /><MoreHorizontal size={18} /></div><div className="client-info"><Avatar name={client.name} color={client.color} size="lg" /><div><h2>{client.name}</h2><p>{client.handle}</p></div></div><div className="client-stats"><span><strong>{client.posts}</strong> agendados</span><span><strong>{[24, 18, 15, 11][index]}</strong> publicados</span></div><div className="client-footer"><span className={client.status === "Conectado" ? "connection-ok" : "connection-warning"}><i />{client.status === "Conectado" ? "Instagram conectado" : "Ação necessária"}</span><button>Ver calendário <ChevronRight size={14} /></button></div></article>)}</section></main>;
+function ClientsView({ clients }: { clients: WorkspaceClientSummary[] }) {
+  return <main className="view"><div className="page-heading"><div><span className="eyebrow">{clients.length} CONTAS GERENCIADAS</span><h1>Clientes</h1><p>Organize perfis e acompanhe a conexão com o Instagram.</p></div><button className="primary-button"><Plus size={16} /> Novo cliente</button></div><section className="client-grid">{clients.map((client) => <article className="client-card" key={client.id}><div className="client-cover" style={{ backgroundColor: `${client.color}20` }}><span style={{ backgroundColor: client.color }} /><MoreHorizontal size={18} /></div><div className="client-info"><Avatar name={client.name} color={client.color} size="lg" /><div><h2>{client.name}</h2><p>{client.handle}</p></div></div><div className="client-stats"><span><strong>{client.posts}</strong> agendados</span><span><strong>{client.published}</strong> publicados</span></div><div className="client-footer"><span className={client.status === "Conectado" ? "connection-ok" : client.status === "Demo" ? "connection-demo" : "connection-warning"}><i />{client.status === "Conectado" ? "Instagram conectado" : client.status === "Demo" ? "Cliente de demonstração" : "Ação necessária"}</span><button>Ver calendário <ChevronRight size={14} /></button></div></article>)}</section></main>;
 }
 
 function MediaView() {
@@ -406,11 +407,39 @@ export default function HomePage() {
   const [active, setActive] = useState<View>("calendar");
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [workspaceClients, setWorkspaceClients] = useState(demoClients);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspaceClients() {
+      try {
+        const response = await fetch("/api/workspace/bootstrap", {
+          method: "POST",
+        });
+
+        if (!response.ok) return;
+
+        const result = (await response.json()) as WorkspaceBootstrapResult;
+        if (!cancelled && result.clients.length > 0) {
+          setWorkspaceClients(result.clients);
+        }
+      } catch {
+        // Keep the local demo fixtures available if the network is offline.
+      }
+    }
+
+    void loadWorkspaceClients();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.assign("/login");
   }
-  const content = active === "dashboard" ? <DashboardView goTo={setActive} /> : active === "calendar" ? <CalendarView onCreate={() => setActive("creator")} /> : active === "creator" ? <CreatorView /> : active === "clients" ? <ClientsView /> : active === "media" ? <MediaView /> : active === "history" ? <HistoryView /> : <SettingsView dark={dark} setDark={setDark} />;
-  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={setActive} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => setActive("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={active}>{content}</div></div><MobileBottomNav active={active} setActive={setActive} onMore={() => setSidebarOpen(true)} /></div>;
+  const content = active === "dashboard" ? <DashboardView goTo={setActive} /> : active === "calendar" ? <CalendarView onCreate={() => setActive("creator")} /> : active === "creator" ? <CreatorView /> : active === "clients" ? <ClientsView clients={workspaceClients} /> : active === "media" ? <MediaView /> : active === "history" ? <HistoryView /> : <SettingsView dark={dark} setDark={setDark} />;
+  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={setActive} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => setActive("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={active}>{content}</div></div><MobileBottomNav active={active} setActive={setActive} onMore={() => setSidebarOpen(true)} /></div>;
 }

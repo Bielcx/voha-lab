@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { ensureDemoClients } from "@/data/demo-clients";
 import { createClient } from "@/lib/supabase/server";
 
 const WORKSPACE = {
@@ -37,7 +38,27 @@ export async function POST() {
   }
 
   if (existingMembership) {
-    return NextResponse.json({ workspaceId: existingMembership.workspace_id });
+    try {
+      const clients = await ensureDemoClients(
+        supabase,
+        existingMembership.workspace_id,
+        user.id,
+      );
+      return NextResponse.json({
+        workspaceId: existingMembership.workspace_id,
+        clients,
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível preparar os dados de demonstração.",
+        },
+        { status: 500 },
+      );
+    }
   }
 
   const { error: profileError } = await supabase
@@ -68,8 +89,21 @@ export async function POST() {
     );
   }
 
-  return NextResponse.json(
-    { workspaceId: workspace.id },
-    { status: 201 },
-  );
+  try {
+    const clients = await ensureDemoClients(supabase, workspace.id, user.id);
+    return NextResponse.json(
+      { workspaceId: workspace.id, clients },
+      { status: 201 },
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível preparar os dados de demonstração.",
+      },
+      { status: 500 },
+    );
+  }
 }
