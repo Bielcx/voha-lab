@@ -1,6 +1,8 @@
 # Deploy paralelo na Cloudflare
 
-> Estado em 15 de julho de 2026: configuração preparada e validada localmente. A Vercel continua sendo o ambiente publicado até o Worker remoto ser aprovado.
+> Estado em 15 de julho de 2026: Worker paralelo publicado e validado sem sessão. A Vercel continua sendo o ambiente principal até o login e o workspace serem aprovados no Worker.
+
+URL paralela: [voha-lab.biel-cavalcanti1.workers.dev](https://voha-lab.biel-cavalcanti1.workers.dev)
 
 ## Arquitetura
 
@@ -54,14 +56,14 @@ Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `
 ## Checklist de validação
 
 - [ ] Login com a usuária da Larissa.
-- [ ] Redirecionamento para login quando não autenticada.
+- [x] Redirecionamento para login quando não autenticada.
 - [ ] Criação ou leitura do workspace existente.
 - [ ] Clientes fictícios carregados do Supabase.
 - [ ] Logout removendo a sessão.
-- [ ] Dashboard e calendário em tela pequena.
+- [ ] Dashboard e calendário em tela pequena após login.
 - [ ] Modo claro e escuro.
-- [ ] Imagens do protótipo carregando.
-- [ ] API sem sessão retornando `401`.
+- [x] Tela de login e identidade visual carregando em viewport mobile.
+- [x] API sem sessão retornando `401`.
 - [ ] Logs sem segredos ou erros recorrentes.
 
 ## Retorno seguro
