@@ -1,6 +1,6 @@
 # Deploy paralelo na Cloudflare
 
-> Estado em 15 de julho de 2026: Worker paralelo publicado e validado sem sessão. A Vercel continua sendo o ambiente principal até o login e o workspace serem aprovados no Worker.
+> Estado em 15 de julho de 2026: Worker paralelo publicado e validado pela Larissa com login, sessão, workspace e clientes do Supabase. A Vercel permanece ativa como retorno seguro durante a conclusão do CI/CD e da integração à `main`.
 
 URL paralela: [voha-lab.biel-cavalcanti1.workers.dev](https://voha-lab.biel-cavalcanti1.workers.dev)
 
@@ -20,6 +20,18 @@ npm run build:cloudflare
 npm run preview:cloudflare
 npm run deploy:cloudflare
 ```
+
+## Deploy automático
+
+O Worker usa o **Cloudflare Workers Builds**, conectado ao repositório GitHub. A configuração esperada é:
+
+- branch de produção: `main`;
+- comando de build: `npm run build:cloudflare`;
+- comando de deploy: `npx wrangler deploy`;
+- comando de preview: `npx wrangler versions upload`;
+- builds de branches não produtivas habilitados para validar pull requests.
+
+As variáveis usadas pelo Next.js também precisam existir em **Build Variables and secrets**. Os segredos de runtime continuam configurados no Worker e nunca devem ser gravados no repositório.
 
 O OpenNext recomenda Linux ou WSL. No Windows, o build pode ser validado em um contêiner Linux:
 
@@ -55,10 +67,10 @@ Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `
 
 ## Checklist de validação
 
-- [ ] Login com a usuária da Larissa.
+- [x] Login com a usuária da Larissa.
 - [x] Redirecionamento para login quando não autenticada.
-- [ ] Criação ou leitura do workspace existente.
-- [ ] Clientes fictícios carregados do Supabase.
+- [x] Criação ou leitura do workspace existente.
+- [x] Clientes fictícios carregados do Supabase.
 - [ ] Logout removendo a sessão.
 - [ ] Dashboard e calendário em tela pequena após login.
 - [ ] Modo claro e escuro.
