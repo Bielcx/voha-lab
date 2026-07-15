@@ -44,6 +44,7 @@ import {
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/env/public";
 import type { WorkspaceBootstrapResult, WorkspaceClientSummary } from "@/lib/types/workspace";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
@@ -408,28 +409,51 @@ export default function HomePage() {
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [workspaceClients, setWorkspaceClients] = useState(demoClients);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadWorkspaceClients() {
+    async function initializeWorkspace() {
+      if (!isSupabaseConfigured()) {
+        setAuthReady(true);
+        return;
+      }
+
       try {
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          window.location.replace("/login");
+          return;
+        }
+
         const response = await fetch("/api/workspace/bootstrap", {
           method: "POST",
         });
 
-        if (!response.ok) return;
+        if (response.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
 
-        const result = (await response.json()) as WorkspaceBootstrapResult;
-        if (!cancelled && result.clients.length > 0) {
-          setWorkspaceClients(result.clients);
+        if (response.ok) {
+          const result = (await response.json()) as WorkspaceBootstrapResult;
+          if (!cancelled && result.clients.length > 0) {
+            setWorkspaceClients(result.clients);
+          }
         }
       } catch {
         // Keep the local demo fixtures available if the network is offline.
+      } finally {
+        if (!cancelled) setAuthReady(true);
       }
     }
 
-    void loadWorkspaceClients();
+    void initializeWorkspace();
     return () => {
       cancelled = true;
     };
@@ -440,6 +464,11 @@ export default function HomePage() {
     await supabase.auth.signOut();
     window.location.assign("/login");
   }
+
+  if (!authReady) {
+    return <main className="auth-loading" aria-label="Validando sua sessão"><span className="login-pixel-heart" aria-hidden="true">{Array.from({ length: 63 }, (_, index) => <i key={index} />)}</span><p>Preparando seu calendário…</p></main>;
+  }
+
   const content = active === "dashboard" ? <DashboardView goTo={setActive} /> : active === "calendar" ? <CalendarView onCreate={() => setActive("creator")} /> : active === "creator" ? <CreatorView /> : active === "clients" ? <ClientsView clients={workspaceClients} /> : active === "media" ? <MediaView /> : active === "history" ? <HistoryView /> : <SettingsView dark={dark} setDark={setDark} />;
   return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={setActive} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => setActive("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={active}>{content}</div></div><MobileBottomNav active={active} setActive={setActive} onMore={() => setSidebarOpen(true)} /></div>;
 }

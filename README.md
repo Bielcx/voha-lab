@@ -37,7 +37,11 @@ npm run lint
 npm run build
 ```
 
+O deploy paralelo na Cloudflare usa OpenNext. Consulte o guia antes de
+configurar variáveis ou publicar o Worker.
+
 ## Documentação
 
 - [Arquitetura e modelo de dados](docs/architecture.md)
 - [Custos, limites, alertas e continuidade](docs/costs-and-limits.md)
+- [Deploy paralelo na Cloudflare](docs/cloudflare-deployment.md)
