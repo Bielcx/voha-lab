@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+.auth-loading {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  background: var(--app-bg, #f3f0ea);
+  color: var(--text-muted, #77736d);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.auth-loading .login-pixel-heart {
+  transform: scale(0.8);
+}
+
 :root {
   --coral: #ff5c45;
   --coral-dark: #e84d37;
