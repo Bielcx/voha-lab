@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   CircleHelp,
   Clock3,
@@ -21,7 +20,6 @@ import {
   ImageIcon,
   LayoutGrid,
   Library,
-  ListFilter,
   LogOut,
   Menu,
   MessageCircle,
@@ -31,7 +29,6 @@ import {
   Search,
   Send,
   Settings,
-  Share2,
   SlidersHorizontal,
   Smile,
   Sparkles,
@@ -40,15 +37,21 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
+import {
+  CalendarView,
+  DashboardView,
+  HistoryView,
+  PostDetailModal,
+} from "@/components/operational-views";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/env/public";
+import type { OperationalPost } from "@/lib/posts/types";
 import type { WorkspaceBootstrapResult, WorkspaceClientSummary } from "@/lib/types/workspace";
 import { MediaLibrary } from "@/components/media-library";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
-type PostStatus = "Agendado" | "Aguardando aprovação" | "Rascunho" | "Publicado" | "Falhou";
 
 const navItems: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Início", icon: Home },
@@ -75,27 +78,6 @@ const media = [
   { id: 6, src: "https://images.unsplash.com/photo-1511081692775-05d0f180a065?auto=format&fit=crop&w=900&q=85", alt: "Detalhes artesanais", type: "Imagem", client: "Flora Studio" },
 ];
 
-const calendarPosts: { day: number; title: string; time: string; client: string; status: PostStatus; image?: string }[] = [
-  { day: 2, title: "Café que abraça", time: "09:30", client: "Alba Café", status: "Publicado", image: media[0].src },
-  { day: 4, title: "Rotina de glow", time: "18:00", client: "Noma Skin", status: "Agendado", image: media[2].src },
-  { day: 7, title: "Respire com a gente", time: "07:30", client: "Sopro Yoga", status: "Agendado" },
-  { day: 9, title: "Do grão à xícara", time: "11:00", client: "Alba Café", status: "Aguardando aprovação", image: media[1].src },
-  { day: 12, title: "Verde dentro de casa", time: "16:00", client: "Flora Studio", status: "Rascunho", image: media[4].src },
-  { day: 15, title: "Seu ritual, seu tempo", time: "19:00", client: "Noma Skin", status: "Agendado" },
-  { day: 18, title: "Slow mornings", time: "10:00", client: "Alba Café", status: "Agendado", image: media[0].src },
-  { day: 22, title: "Casa que floresce", time: "12:30", client: "Flora Studio", status: "Agendado" },
-  { day: 24, title: "Sequência restaurativa", time: "08:00", client: "Sopro Yoga", status: "Rascunho", image: media[3].src },
-  { day: 28, title: "Sabores de julho", time: "17:30", client: "Alba Café", status: "Agendado" },
-];
-
-const statusClass: Record<PostStatus, string> = {
-  Agendado: "status-scheduled",
-  "Aguardando aprovação": "status-approval",
-  Rascunho: "status-draft",
-  Publicado: "status-published",
-  Falhou: "status-failed",
-};
-
 const pixelHeart = [
   "031000130",
   "111101111",
@@ -107,22 +89,8 @@ const pixelHeart = [
   "000010000",
 ];
 
-const pixelSpark = [
-  "0001000",
-  "0101010",
-  "0011100",
-  "1111111",
-  "0011100",
-  "0101010",
-  "0001000",
-];
-
 function PixelGrid({ pattern, className, label }: { pattern: string[]; className: string; label?: string }) {
   return <span className={className} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true} style={{ "--pixel-cols": pattern[0].length } as CSSProperties}>{pattern.flatMap((row, rowIndex) => [...row].map((tone, columnIndex) => <i className={`pixel-tone-${tone}`} key={`${rowIndex}-${columnIndex}`} />))}</span>;
-}
-
-function PixelStatusMark({ status }: { status: PostStatus }) {
-  return <span className={`pixel-status-mark ${statusClass[status]}`} aria-hidden="true"><i /><i /><i /><i /></span>;
 }
 
 function BrandMark() {
@@ -132,32 +100,6 @@ function BrandMark() {
 function Avatar({ name, color = "#B66A3C", size = "md" }: { name: string; color?: string; size?: "sm" | "md" | "lg" }) {
   const initials = name.split(" ").map((part) => part[0]).join("").slice(0, 2);
   return <span className={`avatar avatar-${size}`} style={{ backgroundColor: color }}>{initials}</span>;
-}
-
-function NumberTicker({ value, className = "" }: { value: number; className?: string }) {
-  const [displayValue, setDisplayValue] = useState(0);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const reducedMotionFrame = requestAnimationFrame(() => setDisplayValue(value));
-      return () => cancelAnimationFrame(reducedMotionFrame);
-    }
-
-    const duration = 650;
-    const startedAt = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
-      const progress = Math.min((now - startedAt) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(Math.round(value * eased));
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [value]);
-
-  return <strong className={`number-ticker ${className}`} aria-label={String(value)}><span aria-hidden="true">{displayValue}</span></strong>;
 }
 
 function Sidebar({ active, setActive, open, onClose, onLogout, clients }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void; clients: WorkspaceClientSummary[] }) {
@@ -213,6 +155,7 @@ function Topbar({ active, onMenu, onCreate, dark, setDark }: { active: View; onM
   );
 }
 
+/* Legacy static operational prototype retained temporarily for visual reference.
 function DashboardView({ goTo }: { goTo: (view: View) => void }) {
   const nextPosts = calendarPosts.filter((post) => post.status === "Agendado").slice(0, 4);
   return (
@@ -317,21 +260,26 @@ function WeekView({ onCreate }: { onCreate: () => void }) {
   return <section className="week-calendar"><div className="week-head"><span />{weekDays.map((day, index) => <div key={day} className={index === 0 ? "current" : ""}><small>{["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"][index]}</small><strong>{day}</strong></div>)}</div><div className="week-body">{["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"].map((time) => <div className="time-row" key={time}><span>{time}</span>{weekDays.map((day) => <button key={day} onClick={onCreate} aria-label={`Criar post dia ${day} às ${time}`} /> )}</div>)}<div className="week-event" style={{ gridColumn: 4, gridRow: "5 / span 2" }}><small>19:00 · Noma Skin</small><strong>Seu ritual, seu tempo</strong><span>Post · Agendado</span></div><div className="week-event green" style={{ gridColumn: 7, gridRow: "2 / span 2" }}><small>10:00 · Alba Café</small><strong>Slow mornings</strong><span>Reel · Agendado</span></div></div></section>;
 }
 
-function CreatorView() {
-  const [caption, setCaption] = useState("Manhãs sem pressa começam com café feito na hora. ☕\n\nPassa aqui para experimentar nosso novo microlote da Serra da Mantiqueira.");
-  const [comment, setComment] = useState("Origem: Carmo de Minas · Notas de caramelo, chocolate e frutas amarelas ✨");
-  const [format, setFormat] = useState("Imagem");
-  const [scheduled, setScheduled] = useState(true);
+*/
+function CreatorView({ initialPost }: { initialPost?: OperationalPost | null }) {
+  const accountName = initialPost?.clientName ?? "Alba Café";
+  const accountColor = initialPost?.clientColor ?? "#B66A3C";
+  const accountHandle = initialPost?.clientHandle ?? "@albacafe";
+  const mediaSrc = initialPost?.thumbnailUrl ?? media[0].src;
+  const [caption, setCaption] = useState(initialPost?.caption ?? "Manhãs sem pressa começam com café feito na hora. ☕\n\nPassa aqui para experimentar nosso novo microlote da Serra da Mantiqueira.");
+  const [comment, setComment] = useState(initialPost?.firstComment ?? "Origem: Carmo de Minas · Notas de caramelo, chocolate e frutas amarelas ✨");
+  const [format, setFormat] = useState(initialPost ? { image: "Imagem", carousel: "Carrossel", reel: "Reel" }[initialPost.format] : "Imagem");
+  const [scheduled, setScheduled] = useState(initialPost ? initialPost.status === "scheduled" : true);
   const [saved, setSaved] = useState(false);
   const [mobilePane, setMobilePane] = useState<"edit" | "preview">("edit");
   return (
     <main className={`creator-view mobile-${mobilePane}`}>
       <div className="creator-mobile-tabs" aria-label="Visualização do conteúdo"><button className={mobilePane === "edit" ? "selected" : ""} onClick={() => setMobilePane("edit")}><SlidersHorizontal size={16} /> Editar</button><button className={mobilePane === "preview" ? "selected" : ""} onClick={() => setMobilePane("preview")}><InstagramPreviewIcon /> Preview</button></div>
       <section className="composer-panel">
-        <div className="composer-head"><div><span className="eyebrow">CRIAR CONTEÚDO</span><h1>Novo post</h1></div><div className="save-state">{saved ? <><Check size={14} /> Salvo agora</> : "Rascunho salvo"}</div></div>
-        <div className="form-section"><label>Publicar em</label><button className="account-select"><Avatar name="Alba Café" color="#B66A3C" size="md" /><span><strong>Alba Café</strong><small>@albacafe · Instagram</small></span><AtSign size={17} /><ChevronDown size={15} /></button></div>
+        <div className="composer-head"><div><span className="eyebrow">{initialPost ? "EDITAR CONTEÚDO" : "CRIAR CONTEÚDO"}</span><h1>{initialPost ? "Editar post" : "Novo post"}</h1></div><div className="save-state">{saved ? <><Check size={14} /> Salvo localmente</> : initialPost ? "Edição em andamento" : "Rascunho local"}</div></div>
+        <div className="form-section"><label>Publicar em</label><button className="account-select"><Avatar name={accountName} color={accountColor} size="md" /><span><strong>{accountName}</strong><small>{accountHandle} · Instagram</small></span><AtSign size={17} /><ChevronDown size={15} /></button></div>
         <div className="form-section"><label>Formato</label><div className="format-options">{[{ name: "Imagem", icon: ImageIcon }, { name: "Carrossel", icon: LayoutGrid }, { name: "Reel", icon: Grid2X2 }].map(({ name, icon: Icon }) => <button key={name} className={format === name ? "selected" : ""} onClick={() => setFormat(name)}><Icon size={17} />{name}</button>)}</div></div>
-        <div className="form-section"><div className="label-row"><label>Mídia</label><span>1080 × 1350 px</span></div><div className="selected-media"><Image src={media[0].src} alt={media[0].alt} fill sizes="120px" /><div className="media-actions"><button aria-label="Editar mídia"><SlidersHorizontal size={15} /></button><button aria-label="Remover mídia"><X size={15} /></button></div></div><button className="upload-inline"><Plus size={15} /> Adicionar {format === "Carrossel" ? "outra mídia" : "mídia"}</button></div>
+        <div className="form-section"><div className="label-row"><label>Mídia</label><span>1080 × 1350 px</span></div><div className="selected-media"><Image src={mediaSrc} alt={initialPost?.mediaName ?? media[0].alt} fill sizes="120px" unoptimized={Boolean(initialPost?.thumbnailUrl)} /><div className="media-actions"><button aria-label="Editar mídia"><SlidersHorizontal size={15} /></button><button aria-label="Remover mídia"><X size={15} /></button></div></div><button className="upload-inline"><Plus size={15} /> Adicionar {format === "Carrossel" ? "outra mídia" : "mídia"}</button></div>
         <div className="form-section"><div className="label-row"><label htmlFor="caption">Legenda</label><button><Sparkles size={14} /> Melhorar texto</button></div><div className="text-area-wrap"><textarea id="caption" value={caption} maxLength={2200} onChange={(event) => setCaption(event.target.value)} /><div className="text-toolbar"><span><button aria-label="Adicionar emoji"><Smile size={16} /></button><button aria-label="Adicionar arquivo"><FileText size={16} /></button></span><small>{caption.length} / 2.200</small></div></div></div>
         <div className="form-section"><div className="label-row"><label htmlFor="comment">Primeiro comentário</label><span>Opcional</span></div><div className="text-area-wrap compact"><textarea id="comment" value={comment} maxLength={1000} onChange={(event) => setComment(event.target.value)} /><div className="text-toolbar"><span><button aria-label="Adicionar emoji"><Smile size={16} /></button></span><small>{comment.length} / 1.000</small></div></div></div>
         <div className="form-section publish-options"><label>Quando publicar?</label><div className="radio-list"><button className={!scheduled ? "selected" : ""} onClick={() => setScheduled(false)}><span className="radio"><i /></span><span><strong>Publicar agora</strong><small>O conteúdo será enviado imediatamente</small></span></button><button className={scheduled ? "selected" : ""} onClick={() => setScheduled(true)}><span className="radio"><i /></span><span><strong>Agendar publicação</strong><small>Escolha a melhor data e horário</small></span></button></div>{scheduled ? <div className="schedule-fields"><button><CalendarDays size={16} /><span><small>Data</small><strong>18 de julho de 2026</strong></span><ChevronDown size={14} /></button><button><Clock3 size={16} /><span><small>Horário</small><strong>10:00</strong></span><ChevronDown size={14} /></button></div> : null}</div>
@@ -340,10 +288,10 @@ function CreatorView() {
       <aside className="preview-panel">
         <div className="preview-heading"><div><span>Preview</span><small>Instagram feed</small></div><div className="segmented compact-segment"><button className="selected">Feed</button><button>Perfil</button></div></div>
         <div className="phone-preview">
-          <div className="insta-head"><div><Avatar name="Alba Café" color="#B66A3C" size="sm" /><span><strong>albacafe</strong><small>São Paulo, SP</small></span></div><MoreHorizontal size={19} /></div>
-          <div className="post-image"><Image src={media[0].src} alt={media[0].alt} fill sizes="420px" priority /></div>
+          <div className="insta-head"><div><Avatar name={accountName} color={accountColor} size="sm" /><span><strong>{accountHandle.replace("@", "")}</strong><small>São Paulo, SP</small></span></div><MoreHorizontal size={19} /></div>
+          <div className="post-image"><Image src={mediaSrc} alt={initialPost?.mediaName ?? media[0].alt} fill sizes="420px" priority unoptimized={Boolean(initialPost?.thumbnailUrl)} /></div>
           <div className="insta-actions"><span><Heart size={23} /><MessageCircle size={22} /><Send size={21} /></span><Library size={21} /></div>
-          <div className="insta-copy"><strong>187 curtidas</strong><p><b>albacafe</b> {caption}</p><span>Ver todos os 12 comentários</span><p className="comment-preview"><b>albacafe</b> {comment}</p><small>HÁ ALGUNS SEGUNDOS</small></div>
+          <div className="insta-copy"><strong>187 curtidas</strong><p><b>{accountHandle.replace("@", "")}</b> {caption}</p><span>Ver todos os 12 comentários</span><p className="comment-preview"><b>{accountHandle.replace("@", "")}</b> {comment}</p><small>HÁ ALGUNS SEGUNDOS</small></div>
         </div>
         <div className="preview-note"><Sparkles size={16} /><span><strong>Seu post está com uma boa leitura.</strong><small>A legenda aparece completa antes do “mais”.</small></span></div>
       </aside>
@@ -359,6 +307,7 @@ function ClientsView({ clients }: { clients: WorkspaceClientSummary[] }) {
   return <main className="view"><div className="page-heading"><div><span className="eyebrow">{clients.length} CONTAS GERENCIADAS</span><h1>Clientes</h1><p>Organize perfis e acompanhe a conexão com o Instagram.</p></div><button className="primary-button"><Plus size={16} /> Novo cliente</button></div><section className="client-grid">{clients.map((client) => <article className="client-card" key={client.id}><div className="client-cover" style={{ backgroundColor: `${client.color}20` }}><span style={{ backgroundColor: client.color }} /><MoreHorizontal size={18} /></div><div className="client-info"><Avatar name={client.name} color={client.color} size="lg" /><div><h2>{client.name}</h2><p>{client.handle}</p></div></div><div className="client-stats"><span><strong>{client.posts}</strong> agendados</span><span><strong>{client.published}</strong> publicados</span></div><div className="client-footer"><span className={client.status === "Conectado" ? "connection-ok" : client.status === "Demo" ? "connection-demo" : "connection-warning"}><i />{client.status === "Conectado" ? "Instagram conectado" : client.status === "Demo" ? "Cliente de demonstração" : "Ação necessária"}</span><button>Ver calendário <ChevronRight size={14} /></button></div></article>)}</section></main>;
 }
 
+/* Legacy static history prototype retained temporarily for visual reference.
 function HistoryView() {
   const rows = [
     { title: "Café que abraça", client: "Alba Café", date: "13 jul, 09:30", status: "Publicado" as PostStatus, kind: "Imagem" },
@@ -379,6 +328,7 @@ function HistoryView() {
   );
 }
 
+*/
 function SettingsView({ dark, setDark }: { dark: boolean; setDark: (dark: boolean) => void }) {
   return <main className="view settings-view"><div className="page-heading"><div><span className="eyebrow">SEU WORKSPACE</span><h1>Configurações</h1><p>Personalize o Voha e gerencie suas preferências.</p></div></div><div className="settings-layout"><nav><button className="active">Geral</button><button>Notificações</button><button>Publicação</button><button>Equipe</button><button>Plano e cobrança</button></nav><section className="settings-content"><div className="settings-section"><h2>Perfil</h2><p>Suas informações pessoais no workspace.</p><div className="profile-row"><Avatar name="Larissa Cruz" color="#333238" size="lg" /><button className="secondary-button">Alterar foto</button></div><div className="two-fields"><label>Nome completo<input value="Larissa Cruz" readOnly /></label><label>E-mail<input value="larissa@voha.app" readOnly /></label></div></div><div className="settings-section"><h2>Aparência</h2><p>Escolha como o Voha aparece para você.</p><div className="theme-options"><button className={!dark ? "selected" : ""} onClick={() => setDark(false)}><span className="theme-preview light-preview"><i /><b /><b /></span><strong><Sun size={15} /> Claro</strong></button><button className={dark ? "selected" : ""} onClick={() => setDark(true)}><span className="theme-preview dark-preview"><i /><b /><b /></span><strong><Moon size={15} /> Escuro</strong></button></div></div><div className="settings-section"><h2>Fuso horário</h2><p>Usado para todos os agendamentos do workspace.</p><button className="select-field"><span><small>Fuso horário</small><strong>América/São Paulo (GMT-3)</strong></span><ChevronDown size={15} /></button></div></section></div></main>;
 }
@@ -405,6 +355,10 @@ export default function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [workspaceClients, setWorkspaceClients] = useState(demoClients);
   const [authReady, setAuthReady] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<OperationalPost | null>(null);
+  const [editingPost, setEditingPost] = useState<OperationalPost | null>(null);
+  const [postsVersion, setPostsVersion] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -454,16 +408,39 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 3600);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.assign("/login");
   }
 
+  function navigate(view: View) {
+    if (view === "creator") setEditingPost(null);
+    setActive(view);
+  }
+
+  function editPost(post: OperationalPost) {
+    setSelectedPost(null);
+    setEditingPost(post);
+    setActive("creator");
+  }
+
+  function handleDuplicated() {
+    setSelectedPost(null);
+    setPostsVersion((version) => version + 1);
+    setNotice("Publicação duplicada como rascunho.");
+  }
+
   if (!authReady) {
     return <main className="auth-loading" aria-label="Validando sua sessão"><span className="login-pixel-heart" aria-hidden="true">{Array.from({ length: 63 }, (_, index) => <i key={index} />)}</span><p>Preparando seu calendário…</p></main>;
   }
 
-  const content = active === "dashboard" ? <DashboardView goTo={setActive} /> : active === "calendar" ? <CalendarView onCreate={() => setActive("creator")} /> : active === "creator" ? <CreatorView /> : active === "clients" ? <ClientsView clients={workspaceClients} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView /> : <SettingsView dark={dark} setDark={setDark} />;
-  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={setActive} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => setActive("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={active}>{content}</div></div><MobileBottomNav active={active} setActive={setActive} onMore={() => setSidebarOpen(true)} /></div>;
+  const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <CreatorView initialPost={editingPost} /> : active === "clients" ? <ClientsView clients={workspaceClients} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} />;
+  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
 }
