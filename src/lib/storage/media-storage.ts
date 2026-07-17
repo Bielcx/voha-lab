@@ -10,8 +10,15 @@ export type UploadUrlResult = {
   expiresAt: Date;
 };
 
+export type StoredMediaMetadata = {
+  sizeBytes: number;
+  contentType: string | null;
+  eTag: string | null;
+};
+
 export interface MediaStorage {
   createUploadUrl(input: UploadUrlInput): Promise<UploadUrlResult>;
   createDownloadUrl(key: string, expiresInSeconds?: number): Promise<string>;
+  getMetadata(key: string): Promise<StoredMediaMetadata>;
   delete(key: string): Promise<void>;
 }
