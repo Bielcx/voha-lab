@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -17,8 +18,8 @@ import type {
   UploadUrlResult,
 } from "@/lib/storage/media-storage";
 
-const UPLOAD_URL_TTL_SECONDS = 15 * 60;
-const DOWNLOAD_URL_TTL_SECONDS = 60 * 60;
+const UPLOAD_URL_TTL_SECONDS = 10 * 60;
+const DOWNLOAD_URL_TTL_SECONDS = 10 * 60;
 
 let client: S3Client | undefined;
 
@@ -90,6 +91,19 @@ export class R2MediaStorage implements MediaStorage {
       new GetObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: key }),
       { expiresIn: expiresInSeconds },
     );
+  }
+
+  async getMetadata(key: string) {
+    const env = getR2Env();
+    const result = await getClient().send(
+      new HeadObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: key }),
+    );
+
+    return {
+      sizeBytes: result.ContentLength ?? 0,
+      contentType: result.ContentType ?? null,
+      eTag: result.ETag?.replaceAll('"', "") ?? null,
+    };
   }
 
   async delete(key: string) {

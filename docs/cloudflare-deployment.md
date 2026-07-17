@@ -1,6 +1,9 @@
-# Deploy paralelo na Cloudflare
+# Deploy na Cloudflare
 
-> Estado em 15 de julho de 2026: Worker paralelo publicado e validado pela Larissa com login, sessão, workspace e clientes do Supabase. A Vercel permanece ativa como retorno seguro durante a conclusão do CI/CD e da integração à `main`.
+> Estado em 16 de julho de 2026: Cloudflare Workers é o ambiente principal, com
+> deploy automático pelo GitHub. Login, sessão, workspace e clientes do Supabase
+> foram validados pela Larissa. A implantação anterior pode ser mantida apenas como
+> rollback temporário enquanto o MVP é concluído.
 
 URL paralela: [voha-lab.biel-cavalcanti1.workers.dev](https://voha-lab.biel-cavalcanti1.workers.dev)
 
@@ -9,7 +12,8 @@ URL paralela: [voha-lab.biel-cavalcanti1.workers.dev](https://voha-lab.biel-cava
 - Next.js 16 executado no Cloudflare Workers por `@opennextjs/cloudflare`.
 - Supabase permanece responsável por autenticação e PostgreSQL.
 - Cloudflare R2 permanece responsável pelas mídias.
-- A Vercel não deve ser removida antes da validação do ambiente paralelo.
+- A implantação anterior não recebe novas funcionalidades e serve somente como
+  rollback temporário.
 
 O Worker validado possui aproximadamente **2.022 KiB gzip**, abaixo do limite de 3 MiB do Workers Free.
 
@@ -76,8 +80,13 @@ Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `
 - [ ] Modo claro e escuro.
 - [x] Tela de login e identidade visual carregando em viewport mobile.
 - [x] API sem sessão retornando `401`.
-- [ ] Logs sem segredos ou erros recorrentes.
+- [x] Upload direto de imagem para o bucket privado por URL assinada.
+- [x] Confirmação do ativo como `ready` e leitura por URL GET assinada.
+- [x] Exclusão lógica no Supabase e remoção do objeto de teste no R2.
+- [x] Biblioteca sem overflow horizontal em viewport mobile de 390×844.
+- [x] Logs do fluxo de mídia sem segredos, chaves de objeto ou URLs assinadas.
 
 ## Retorno seguro
 
-Se algum teste falhar, a URL da Vercel permanece ativa. Nenhum DNS ou domínio deve ser alterado durante o primeiro deploy paralelo.
+Se algum teste falhar, interrompa a promoção da branch e mantenha a versão estável
+do Worker. Alterações de domínio só devem ocorrer depois da validação do preview.

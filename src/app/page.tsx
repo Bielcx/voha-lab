@@ -36,7 +36,6 @@ import {
   Smile,
   Sparkles,
   Sun,
-  Upload,
   Users,
   X,
   type LucideIcon,
@@ -46,6 +45,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/env/public";
 import type { WorkspaceBootstrapResult, WorkspaceClientSummary } from "@/lib/types/workspace";
+import { MediaLibrary } from "@/components/media-library";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
 type PostStatus = "Agendado" | "Aguardando aprovação" | "Rascunho" | "Publicado" | "Falhou";
@@ -359,11 +359,6 @@ function ClientsView({ clients }: { clients: WorkspaceClientSummary[] }) {
   return <main className="view"><div className="page-heading"><div><span className="eyebrow">{clients.length} CONTAS GERENCIADAS</span><h1>Clientes</h1><p>Organize perfis e acompanhe a conexão com o Instagram.</p></div><button className="primary-button"><Plus size={16} /> Novo cliente</button></div><section className="client-grid">{clients.map((client) => <article className="client-card" key={client.id}><div className="client-cover" style={{ backgroundColor: `${client.color}20` }}><span style={{ backgroundColor: client.color }} /><MoreHorizontal size={18} /></div><div className="client-info"><Avatar name={client.name} color={client.color} size="lg" /><div><h2>{client.name}</h2><p>{client.handle}</p></div></div><div className="client-stats"><span><strong>{client.posts}</strong> agendados</span><span><strong>{client.published}</strong> publicados</span></div><div className="client-footer"><span className={client.status === "Conectado" ? "connection-ok" : client.status === "Demo" ? "connection-demo" : "connection-warning"}><i />{client.status === "Conectado" ? "Instagram conectado" : client.status === "Demo" ? "Cliente de demonstração" : "Ação necessária"}</span><button>Ver calendário <ChevronRight size={14} /></button></div></article>)}</section></main>;
 }
 
-function MediaView() {
-  const [selectedClient, setSelectedClient] = useState("Todos");
-  return <main className="view"><div className="page-heading"><div><span className="eyebrow">36 ARQUIVOS</span><h1>Biblioteca de mídias</h1><p>Todo o conteúdo visual dos seus clientes em um só lugar.</p></div><button className="primary-button"><Upload size={16} /> Enviar mídia</button></div><div className="library-toolbar"><div className="library-tabs">{["Todos", "Alba Café", "Flora Studio", "Noma Skin", "Sopro Yoga"].map((item) => <button key={item} className={selectedClient === item ? "active" : ""} onClick={() => setSelectedClient(item)}>{item}</button>)}</div><div><button><ListFilter size={15} /> Tipo <ChevronDown size={13} /></button><button><CalendarDays size={15} /> Mais recentes <ChevronDown size={13} /></button></div></div><section className="media-grid">{media.filter((item) => selectedClient === "Todos" || item.client === selectedClient).map((item) => <article key={item.id}><div className="media-image"><Image src={item.src} alt={item.alt} fill sizes="(max-width: 700px) 50vw, 240px" /><span>{item.type}</span><button aria-label={`Opções de ${item.alt}`}><MoreHorizontal size={17} /></button></div><div><strong>{item.client}</strong><span>Adicionado em {8 + item.id} jul</span></div></article>)}</section></main>;
-}
-
 function HistoryView() {
   const rows = [
     { title: "Café que abraça", client: "Alba Café", date: "13 jul, 09:30", status: "Publicado" as PostStatus, kind: "Imagem" },
@@ -469,6 +464,6 @@ export default function HomePage() {
     return <main className="auth-loading" aria-label="Validando sua sessão"><span className="login-pixel-heart" aria-hidden="true">{Array.from({ length: 63 }, (_, index) => <i key={index} />)}</span><p>Preparando seu calendário…</p></main>;
   }
 
-  const content = active === "dashboard" ? <DashboardView goTo={setActive} /> : active === "calendar" ? <CalendarView onCreate={() => setActive("creator")} /> : active === "creator" ? <CreatorView /> : active === "clients" ? <ClientsView clients={workspaceClients} /> : active === "media" ? <MediaView /> : active === "history" ? <HistoryView /> : <SettingsView dark={dark} setDark={setDark} />;
+  const content = active === "dashboard" ? <DashboardView goTo={setActive} /> : active === "calendar" ? <CalendarView onCreate={() => setActive("creator")} /> : active === "creator" ? <CreatorView /> : active === "clients" ? <ClientsView clients={workspaceClients} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView /> : <SettingsView dark={dark} setDark={setDark} />;
   return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={setActive} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => setActive("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={active}>{content}</div></div><MobileBottomNav active={active} setActive={setActive} onMore={() => setSidebarOpen(true)} /></div>;
 }

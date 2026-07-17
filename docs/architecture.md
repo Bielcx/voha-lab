@@ -3,7 +3,7 @@
 ## Responsabilidades
 
 ```text
-Next.js na Vercel
+Next.js no Cloudflare Workers via OpenNext
 ├── interface e Server Actions
 ├── rotas de upload e publicação
 ├── sessão SSR do Supabase
@@ -34,7 +34,7 @@ A aprovação externa sem conta será feita por endpoint de servidor usando um t
 
 ## Mídias
 
-O PostgreSQL guarda metadados; o binário fica no R2. O fluxo planejado é:
+O PostgreSQL guarda metadados; o binário fica no R2. O fluxo implementado é:
 
 1. O navegador solicita autorização ao backend.
 2. O backend valida usuário, workspace, MIME e tamanho.
@@ -42,7 +42,13 @@ O PostgreSQL guarda metadados; o binário fica no R2. O fluxo planejado é:
 4. O navegador envia o arquivo diretamente ao R2 usando uma URL PUT de curta duração.
 5. O backend confirma o objeto e marca `media_assets.status = 'ready'`.
 
-As chaves R2 nunca chegam ao navegador. URLs assinadas devem ser tratadas como bearer tokens.
+As credenciais R2 nunca chegam ao navegador. A chave do objeto aparece apenas nas
+rotas de servidor e no banco; o navegador recebe uma URL assinada temporária, que
+deve ser tratada como bearer token.
+
+O bucket privado aceita JPEG, PNG e WebP de até 25 MB e MP4 de até 200 MB. O CORS
+permite `PUT`, `GET` e `HEAD` somente para as origens local e de produção. Depois do
+upload, o servidor consulta os metadados no R2 antes de marcar o ativo como `ready`.
 
 ## Datas
 
@@ -61,9 +67,12 @@ draft → pending_approval → scheduled → publishing → published
 
 ## Próximas integrações
 
-1. Conectar o projeto Supabase e aplicar a migration.
-2. Implementar login e criação inicial do workspace.
-3. Trocar clientes e calendário fictícios por queries reais.
-4. Implementar upload direto para R2.
-5. Adicionar aprovação externa.
-6. Integrar Meta API e processamento agendado.
+1. Concluir e validar o fluxo de mídias da issue #3.
+2. Implementar gestão real de clientes (#5).
+3. Conectar contas profissionais pela Meta (#6).
+4. Persistir o criador de conteúdo e os rascunhos (#7).
+5. Conectar calendário, dashboard e histórico (#4).
+6. Adicionar aprovação externa (#11).
+7. Integrar publicação e agendamento pela Meta (#9).
+8. Adicionar alertas e observabilidade (#10).
+9. Executar hardening e lançar o MVP (#8).
