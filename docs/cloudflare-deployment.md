@@ -66,6 +66,9 @@ Segredos somente de runtime:
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET_NAME`
 - `R2_PUBLIC_BASE_URL`, quando utilizado
+- `META_INSTAGRAM_APP_ID`
+- `META_INSTAGRAM_APP_SECRET`
+- `META_TOKEN_ENCRYPTION_KEY`
 
 Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `.dev.vars` ou os valores dos segredos ao Git.
 
@@ -85,6 +88,8 @@ Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `
 - [x] Exclusão lógica no Supabase e remoção do objeto de teste no R2.
 - [x] Biblioteca sem overflow horizontal em viewport mobile de 390×844.
 - [x] Logs do fluxo de mídia sem segredos, chaves de objeto ou URLs assinadas.
+- [ ] OAuth do Instagram com a conta testadora da Larissa.
+- [ ] Token do Instagram criptografado e ausente dos logs.
 
 ## Retorno seguro
 

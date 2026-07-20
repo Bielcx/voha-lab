@@ -56,7 +56,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .eq("id", idResult.data)
     .eq("workspace_id", access.workspaceId)
     .is("deleted_at", null)
-    .select("id, name, instagram_handle, brand_color, status, contact_name, contact_email, instagram_accounts(connection_status)")
+    .select("id, name, instagram_handle, brand_color, status, contact_name, contact_email, instagram_accounts(connection_status, token_expires_at)")
     .maybeSingle();
 
   if (error) {

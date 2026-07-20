@@ -69,6 +69,14 @@ const demoClients: WorkspaceClientSummary[] = [
   { id: "demo-sopro-yoga", name: "Sopro Yoga", handle: "@soproyoga", initials: "SY", color: "#7F77A8", posts: 3, published: 11, status: "Demo", clientStatus: "active", contactName: null, contactEmail: null },
 ];
 
+const instagramOAuthErrors: Record<string, string> = {
+  access_denied: "A conexão com o Instagram foi cancelada.",
+  account_already_connected: "Essa conta do Instagram já está vinculada a outro cliente.",
+  invalid_state: "A autorização expirou. Tente conectar novamente.",
+  session_mismatch: "Sua sessão mudou durante a autorização. Entre novamente e repita o processo.",
+  client_not_found: "O cliente desta autorização não foi encontrado.",
+};
+
 const media = [
   { id: 1, src: "https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=85", alt: "Interior acolhedor do Alba Café", type: "Imagem", client: "Alba Café" },
   { id: 2, src: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=85", alt: "Café sendo preparado", type: "Reel", client: "Alba Café" },
@@ -126,7 +134,7 @@ function Sidebar({ active, setActive, open, onClose, onLogout, onAddClient, clie
         {clients.slice(0, 4).map((client) => (
           <button key={client.name} onClick={() => setActive("calendar")}>
             <Avatar name={client.name} color={client.color} size="sm" /><span>{client.name}</span>
-            {client.status === "Reconectar" ? <AlertCircle className="warning-icon" size={14} /> : null}
+            {client.status === "Expirando" || client.status === "Expirado" || client.status === "Erro" ? <AlertCircle className="warning-icon" size={14} /> : null}
           </button>
         ))}
       </div>
@@ -412,6 +420,26 @@ export default function HomePage() {
     const timeout = window.setTimeout(() => setNotice(null), 3600);
     return () => window.clearTimeout(timeout);
   }, [notice]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const instagramResult = url.searchParams.get("instagram");
+    if (!instagramResult) return;
+
+    const reason = url.searchParams.get("reason") ?? "";
+    const feedback = instagramResult === "connected"
+      ? "Instagram conectado. O token foi protegido no servidor."
+      : instagramOAuthErrors[reason] ?? "Não foi possível conectar o Instagram. Tente novamente.";
+    const timeout = window.setTimeout(() => {
+      setActive("clients");
+      setNotice(feedback);
+    }, 0);
+
+    url.searchParams.delete("instagram");
+    url.searchParams.delete("reason");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   async function handleLogout() {
     const supabase = createClient();

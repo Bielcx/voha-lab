@@ -15,6 +15,12 @@ const r2EnvSchema = z.object({
   R2_PUBLIC_BASE_URL: z.url().optional(),
 });
 
+const instagramEnvSchema = z.object({
+  META_INSTAGRAM_APP_ID: z.string().min(1),
+  META_INSTAGRAM_APP_SECRET: z.string().min(1),
+  META_TOKEN_ENCRYPTION_KEY: z.string().min(1),
+});
+
 export function getSupabaseAdminEnv() {
   return supabaseAdminEnvSchema.parse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -29,5 +35,13 @@ export function getR2Env() {
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
     R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
     R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL || undefined,
+  });
+}
+
+export function getInstagramEnv() {
+  return instagramEnvSchema.parse({
+    META_INSTAGRAM_APP_ID: process.env.META_INSTAGRAM_APP_ID,
+    META_INSTAGRAM_APP_SECRET: process.env.META_INSTAGRAM_APP_SECRET,
+    META_TOKEN_ENCRYPTION_KEY: process.env.META_TOKEN_ENCRYPTION_KEY,
   });
 }
