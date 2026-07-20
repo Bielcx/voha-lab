@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
-  ChevronRight,
   CircleHelp,
   Clock3,
   Command,
@@ -50,6 +49,7 @@ import { isSupabaseConfigured } from "@/lib/env/public";
 import type { OperationalPost } from "@/lib/posts/types";
 import type { WorkspaceBootstrapResult, WorkspaceClientSummary } from "@/lib/types/workspace";
 import { MediaLibrary } from "@/components/media-library";
+import { ClientManagement } from "@/components/client-management";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
 
@@ -63,10 +63,10 @@ const navItems: { id: View; label: string; icon: LucideIcon }[] = [
 ];
 
 const demoClients: WorkspaceClientSummary[] = [
-  { id: "demo-alba-cafe", name: "Alba Café", handle: "@albacafe", initials: "AC", color: "#B66A3C", posts: 8, published: 24, status: "Demo" },
-  { id: "demo-flora-studio", name: "Flora Studio", handle: "@florastudio", initials: "FS", color: "#64825C", posts: 5, published: 18, status: "Demo" },
-  { id: "demo-noma-skin", name: "Noma Skin", handle: "@nomaskin", initials: "NS", color: "#B87C7C", posts: 4, published: 15, status: "Demo" },
-  { id: "demo-sopro-yoga", name: "Sopro Yoga", handle: "@soproyoga", initials: "SY", color: "#7F77A8", posts: 3, published: 11, status: "Demo" },
+  { id: "demo-alba-cafe", name: "Alba Café", handle: "@albacafe", initials: "AC", color: "#B66A3C", posts: 8, published: 24, status: "Demo", clientStatus: "active", contactName: null, contactEmail: null },
+  { id: "demo-flora-studio", name: "Flora Studio", handle: "@florastudio", initials: "FS", color: "#64825C", posts: 5, published: 18, status: "Demo", clientStatus: "active", contactName: null, contactEmail: null },
+  { id: "demo-noma-skin", name: "Noma Skin", handle: "@nomaskin", initials: "NS", color: "#B87C7C", posts: 4, published: 15, status: "Demo", clientStatus: "active", contactName: null, contactEmail: null },
+  { id: "demo-sopro-yoga", name: "Sopro Yoga", handle: "@soproyoga", initials: "SY", color: "#7F77A8", posts: 3, published: 11, status: "Demo", clientStatus: "active", contactName: null, contactEmail: null },
 ];
 
 const media = [
@@ -102,7 +102,7 @@ function Avatar({ name, color = "#B66A3C", size = "md" }: { name: string; color?
   return <span className={`avatar avatar-${size}`} style={{ backgroundColor: color }}>{initials}</span>;
 }
 
-function Sidebar({ active, setActive, open, onClose, onLogout, clients }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void; clients: WorkspaceClientSummary[] }) {
+function Sidebar({ active, setActive, open, onClose, onLogout, onAddClient, clients }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void; onAddClient: () => void; clients: WorkspaceClientSummary[] }) {
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="sidebar-head">
@@ -122,7 +122,7 @@ function Sidebar({ active, setActive, open, onClose, onLogout, clients }: { acti
         ))}
       </nav>
       <div className="sidebar-clients">
-        <div className="sidebar-label"><span>Clientes</span><button aria-label="Adicionar cliente"><Plus size={14} /></button></div>
+        <div className="sidebar-label"><span>Clientes</span><button onClick={onAddClient} aria-label="Adicionar cliente"><Plus size={14} /></button></div>
         {clients.slice(0, 4).map((client) => (
           <button key={client.name} onClick={() => setActive("calendar")}>
             <Avatar name={client.name} color={client.color} size="sm" /><span>{client.name}</span>
@@ -303,10 +303,6 @@ function InstagramPreviewIcon() {
   return <span className="preview-icon" aria-hidden="true"><span /></span>;
 }
 
-function ClientsView({ clients }: { clients: WorkspaceClientSummary[] }) {
-  return <main className="view"><div className="page-heading"><div><span className="eyebrow">{clients.length} CONTAS GERENCIADAS</span><h1>Clientes</h1><p>Organize perfis e acompanhe a conexão com o Instagram.</p></div><button className="primary-button"><Plus size={16} /> Novo cliente</button></div><section className="client-grid">{clients.map((client) => <article className="client-card" key={client.id}><div className="client-cover" style={{ backgroundColor: `${client.color}20` }}><span style={{ backgroundColor: client.color }} /><MoreHorizontal size={18} /></div><div className="client-info"><Avatar name={client.name} color={client.color} size="lg" /><div><h2>{client.name}</h2><p>{client.handle}</p></div></div><div className="client-stats"><span><strong>{client.posts}</strong> agendados</span><span><strong>{client.published}</strong> publicados</span></div><div className="client-footer"><span className={client.status === "Conectado" ? "connection-ok" : client.status === "Demo" ? "connection-demo" : "connection-warning"}><i />{client.status === "Conectado" ? "Instagram conectado" : client.status === "Demo" ? "Cliente de demonstração" : "Ação necessária"}</span><button>Ver calendário <ChevronRight size={14} /></button></div></article>)}</section></main>;
-}
-
 /* Legacy static history prototype retained temporarily for visual reference.
 function HistoryView() {
   const rows = [
@@ -353,12 +349,13 @@ export default function HomePage() {
   const [active, setActive] = useState<View>("calendar");
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [workspaceClients, setWorkspaceClients] = useState(demoClients);
+  const [workspaceClients, setWorkspaceClients] = useState<WorkspaceClientSummary[]>(() => isSupabaseConfigured() ? [] : demoClients);
   const [authReady, setAuthReady] = useState(false);
   const [selectedPost, setSelectedPost] = useState<OperationalPost | null>(null);
   const [editingPost, setEditingPost] = useState<OperationalPost | null>(null);
   const [postsVersion, setPostsVersion] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [createClientRequest, setCreateClientRequest] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -390,9 +387,11 @@ export default function HomePage() {
         }
 
         if (response.ok) {
-          const result = (await response.json()) as WorkspaceBootstrapResult;
-          if (!cancelled && result.clients.length > 0) {
-            setWorkspaceClients(result.clients);
+          await response.json() as WorkspaceBootstrapResult;
+          const clientsResponse = await fetch("/api/clients");
+          const clientsResult = (await clientsResponse.json().catch(() => null)) as { clients?: WorkspaceClientSummary[] } | null;
+          if (!cancelled && clientsResponse.ok && clientsResult?.clients) {
+            setWorkspaceClients(clientsResult.clients);
           }
         }
       } catch {
@@ -425,6 +424,12 @@ export default function HomePage() {
     setActive(view);
   }
 
+  function openNewClient() {
+    setActive("clients");
+    setSidebarOpen(false);
+    setCreateClientRequest((request) => request + 1);
+  }
+
   function editPost(post: OperationalPost) {
     setSelectedPost(null);
     setEditingPost(post);
@@ -441,6 +446,6 @@ export default function HomePage() {
     return <main className="auth-loading" aria-label="Validando sua sessão"><span className="login-pixel-heart" aria-hidden="true">{Array.from({ length: 63 }, (_, index) => <i key={index} />)}</span><p>Preparando seu calendário…</p></main>;
   }
 
-  const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <CreatorView initialPost={editingPost} /> : active === "clients" ? <ClientsView clients={workspaceClients} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} />;
-  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
+  const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <CreatorView initialPost={editingPost} /> : active === "clients" ? <ClientManagement key={createClientRequest} clients={workspaceClients} backendEnabled={isSupabaseConfigured()} onClientsChange={setWorkspaceClients} onOpenCalendar={() => navigate("calendar")} onNotice={setNotice} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} />;
+  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} onAddClient={openNewClient} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
 }

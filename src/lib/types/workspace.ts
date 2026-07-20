@@ -6,7 +6,10 @@ export type WorkspaceClientSummary = {
   color: string;
   posts: number;
   published: number;
-  status: "Demo" | "Conectado" | "Reconectar";
+  status: "Demo" | "Conectado" | "Reconectar" | "Desconectado" | "Pausado" | "Arquivado";
+  clientStatus: "active" | "paused" | "archived";
+  contactName: string | null;
+  contactEmail: string | null;
 };
 
 export type WorkspaceBootstrapResult = {
