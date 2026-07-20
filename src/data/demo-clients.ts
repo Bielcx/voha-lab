@@ -68,6 +68,9 @@ function toSummary(row: DemoClientRow): WorkspaceClientSummary {
     posts: fixture?.posts ?? 0,
     published: fixture?.published ?? 0,
     status: "Demo",
+    clientStatus: "active",
+    contactName: null,
+    contactEmail: null,
   };
 }
 
