@@ -2,9 +2,10 @@
 
 Plataforma mobile-first de planejamento, aprovação e agendamento de conteúdo para Instagram.
 
-O Voha já possui autenticação, workspace e biblioteca de mídias reais. As telas de
-calendário, criador, histórico e parte dos clientes ainda usam dados de demonstração
-enquanto as próximas issues do MVP são implementadas.
+O Voha já possui autenticação, workspace, gestão de clientes, biblioteca de mídias
+e o fluxo seguro de conexão com contas profissionais do Instagram. As telas de
+calendário, criador e histórico ainda usam parte dos dados de demonstração enquanto
+as próximas issues do MVP são implementadas.
 
 - Cloudflare Workers: aplicação Next.js e rotas de servidor via OpenNext.
 - Supabase: autenticação, PostgreSQL e Row Level Security.
@@ -32,6 +33,8 @@ Acesse `http://localhost:3000`. Sem credenciais, o protótipo continua funcionan
    de segredos.
 
 Nunca exponha `SUPABASE_SECRET_KEY` ou as credenciais `R2_*` no navegador.
+O mesmo vale para `META_INSTAGRAM_APP_SECRET`, `META_TOKEN_ENCRYPTION_KEY` e tokens
+de acesso do Instagram.
 
 ## Verificações
 
@@ -50,3 +53,4 @@ guia antes de configurar variáveis ou publicar o Worker.
 - [Arquitetura e modelo de dados](docs/architecture.md)
 - [Custos, limites, alertas e continuidade](docs/costs-and-limits.md)
 - [Deploy na Cloudflare](docs/cloudflare-deployment.md)
+- [Instagram API, OAuth e App Review](docs/meta-instagram.md)

@@ -2,12 +2,15 @@
 
 import {
   Archive,
+  Camera,
   Check,
   ChevronRight,
   CirclePause,
+  Link2Off,
   MoreHorizontal,
   Pencil,
   Plus,
+  RefreshCw,
   X,
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -51,7 +54,9 @@ function toDraft(client: WorkspaceClientSummary): ClientDraft {
 
 function connectionLabel(status: WorkspaceClientSummary["status"]) {
   if (status === "Conectado") return "Instagram conectado";
-  if (status === "Reconectar") return "Reconectar Instagram";
+  if (status === "Expirando") return "Conexão expirando";
+  if (status === "Expirado") return "Conexão expirada";
+  if (status === "Erro") return "Erro na conexão";
   if (status === "Pausado") return "Cliente pausado";
   if (status === "Demo") return "Dados de demonstração";
   return "Instagram não conectado";
@@ -59,7 +64,7 @@ function connectionLabel(status: WorkspaceClientSummary["status"]) {
 
 function connectionClass(status: WorkspaceClientSummary["status"]) {
   if (status === "Conectado") return "connection-ok";
-  if (status === "Reconectar") return "connection-warning";
+  if (status === "Expirando" || status === "Expirado" || status === "Erro") return "connection-warning";
   if (status === "Demo") return "connection-demo";
   return "connection-muted";
 }
@@ -83,6 +88,7 @@ export function ClientManagement({
   const [draft, setDraft] = useState<ClientDraft>(EMPTY_DRAFT);
   const [menuClientId, setMenuClientId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [connectionBusy, setConnectionBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function openCreate() {
@@ -186,6 +192,51 @@ export function ClientManagement({
     }
   }
 
+  function connectInstagram(client: WorkspaceClientSummary) {
+    if (!backendEnabled) {
+      onNotice("Conecte o Supabase antes de autorizar o Instagram.");
+      return;
+    }
+    setConnectionBusy(client.id);
+    window.location.assign(`/api/instagram/connect?clientId=${encodeURIComponent(client.id)}`);
+  }
+
+  async function refreshInstagram(client: WorkspaceClientSummary) {
+    setConnectionBusy(client.id);
+    try {
+      const response = await fetch(`/api/instagram/${client.id}`, { method: "POST" });
+      const result = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error ?? "Não foi possível renovar a conexão.");
+      await refreshClients();
+      onNotice("Conexão com o Instagram renovada.");
+    } catch (refreshError) {
+      onNotice(refreshError instanceof Error ? refreshError.message : "Não foi possível renovar a conexão.");
+      await refreshClients().catch(() => undefined);
+    } finally {
+      setConnectionBusy(null);
+    }
+  }
+
+  async function disconnectInstagram(client: WorkspaceClientSummary) {
+    setMenuClientId(null);
+    if (!window.confirm(`Desconectar o Instagram de ${client.name}?`)) return;
+
+    setConnectionBusy(client.id);
+    try {
+      const response = await fetch(`/api/instagram/${client.id}`, { method: "DELETE" });
+      const result = response.status === 204
+        ? null
+        : await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error ?? "Não foi possível desconectar a conta.");
+      await refreshClients();
+      onNotice("Instagram desconectado com segurança.");
+    } catch (disconnectError) {
+      onNotice(disconnectError instanceof Error ? disconnectError.message : "Não foi possível desconectar a conta.");
+    } finally {
+      setConnectionBusy(null);
+    }
+  }
+
   return (
     <main className="view clients-view">
       <div className="page-heading">
@@ -226,13 +277,23 @@ export function ClientManagement({
                   <div className="client-menu">
                     <button onClick={() => openEdit(client)}><Pencil size={14} /> Editar</button>
                     <button onClick={() => void updateStatus(client, client.clientStatus === "paused" ? "active" : "paused")}><CirclePause size={14} />{client.clientStatus === "paused" ? "Reativar" : "Pausar"}</button>
+                    {["Conectado", "Expirando", "Expirado", "Erro"].includes(client.status) ? <button className="danger" onClick={() => void disconnectInstagram(client)}><Link2Off size={14} /> Desconectar Instagram</button> : null}
                     <button className="danger" onClick={() => void archiveClient(client)}><Archive size={14} /> Arquivar</button>
                   </div>
                 ) : null}
               </div>
               <div className="client-info"><ClientAvatar client={client} /><div><h2>{client.name}</h2><p>{client.handle}</p></div></div>
               <div className="client-stats"><span><strong>{client.posts}</strong> agendados</span><span><strong>{client.published}</strong> publicados</span></div>
-              <div className="client-footer"><span className={connectionClass(client.status)}><i />{connectionLabel(client.status)}</span><button onClick={onOpenCalendar}>Ver calendário <ChevronRight size={14} /></button></div>
+              <div className="client-footer">
+                <span className={connectionClass(client.status)}><i />{connectionLabel(client.status)}</span>
+                {client.status === "Desconectado" || client.status === "Expirado" || client.status === "Erro" ? (
+                  <button onClick={() => connectInstagram(client)} disabled={connectionBusy === client.id}><Camera size={14} />{client.status === "Desconectado" ? "Conectar" : "Reconectar"}</button>
+                ) : client.status === "Expirando" ? (
+                  <button onClick={() => void refreshInstagram(client)} disabled={connectionBusy === client.id}><RefreshCw size={14} />Renovar</button>
+                ) : (
+                  <button onClick={onOpenCalendar}>Ver calendário <ChevronRight size={14} /></button>
+                )}
+              </div>
             </article>
           ))}
         </section>

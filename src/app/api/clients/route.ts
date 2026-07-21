@@ -64,7 +64,7 @@ export async function listWorkspaceClients(options?: { includeArchived?: boolean
 
   let clientsQuery = access.supabase
     .from("clients")
-    .select("id, name, instagram_handle, brand_color, status, contact_name, contact_email, instagram_accounts(connection_status)")
+    .select("id, name, instagram_handle, brand_color, status, contact_name, contact_email, instagram_accounts(connection_status, token_expires_at)")
     .eq("workspace_id", access.workspaceId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       contact_email: data.contactEmail || null,
       brand_color: data.brandColor || null,
     })
-    .select("id, name, instagram_handle, brand_color, status, contact_name, contact_email, instagram_accounts(connection_status)")
+    .select("id, name, instagram_handle, brand_color, status, contact_name, contact_email, instagram_accounts(connection_status, token_expires_at)")
     .single();
 
   if (error || !client) {
