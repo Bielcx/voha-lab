@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Share2,
   SlidersHorizontal,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -54,6 +55,8 @@ type CollectionQuery = {
   status?: PostStatus;
   limit?: number;
 };
+
+const POST_DELETED_EVENT = "voha:post-deleted";
 
 const statusClass: Record<PostStatus, string> = {
   draft: "status-draft",
@@ -199,6 +202,15 @@ function usePostCollection(query: CollectionQuery, refreshKey = 0) {
 
     return () => controller.abort();
   }, [requestKey, requestPage]);
+
+  useEffect(() => {
+    function removeDeletedPost(event: Event) {
+      const postId = (event as CustomEvent<string>).detail;
+      setItems((current) => current.filter((post) => post.id !== postId));
+    }
+    window.addEventListener(POST_DELETED_EVENT, removeDeletedPost);
+    return () => window.removeEventListener(POST_DELETED_EVENT, removeDeletedPost);
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (nextOffset === null || loadingMore) return;
@@ -547,14 +559,19 @@ export function HistoryView({ clients, onOpen, refreshKey }: {
   );
 }
 
-export function PostDetailModal({ post, onClose, onEdit, onDuplicated }: {
+export function PostDetailModal({ post, onClose, onEdit, onDuplicated, onDeleted }: {
   post: OperationalPost;
   onClose: () => void;
   onEdit: (post: OperationalPost) => void;
   onDuplicated: () => void;
+  onDeleted: (postId: string) => void;
 }) {
   const [duplicating, setDuplicating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [mediaIndex, setMediaIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const visibleMediaIndex = Math.min(mediaIndex, Math.max(0, post.media.length - 1));
+  const detailMedia = post.media[visibleMediaIndex] ?? null;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -579,16 +596,32 @@ export function PostDetailModal({ post, onClose, onEdit, onDuplicated }: {
     }
   }
 
+  async function deleteDraft() {
+    if (!window.confirm("Excluir este rascunho? Esta ação não pode ser desfeita.")) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+      const result = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) throw new Error(result?.error ?? "Não foi possível excluir o rascunho.");
+      onDeleted(post.id);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir o rascunho.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="post-detail-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="post-detail" role="dialog" aria-modal="true" aria-labelledby="post-detail-title">
         <header><div><span className={`status-pill ${statusClass[post.status]}`}><i />{POST_STATUS_LABELS[post.status]}</span><h2 id="post-detail-title">{postTitle(post)}</h2><p>{post.clientName} · {ptDateTime.format(postDate(post))}</p></div><button className="icon-button" onClick={onClose} aria-label="Fechar detalhes"><X size={18} /></button></header>
-        {post.thumbnailUrl ? <div className="post-detail-media"><Thumbnail post={post} size="520px" /></div> : null}
+        {detailMedia ? <><div className="post-detail-media">{detailMedia.kind === "image" ? <Image src={detailMedia.url} alt={detailMedia.originalName} fill sizes="520px" unoptimized /> : <video src={detailMedia.url} controls muted playsInline />}{post.media.length > 1 ? <><button className="carousel-nav previous" onClick={() => setMediaIndex((visibleMediaIndex - 1 + post.media.length) % post.media.length)} aria-label="Ver mídia anterior"><ChevronLeft size={18} /></button><button className="carousel-nav next" onClick={() => setMediaIndex((visibleMediaIndex + 1) % post.media.length)} aria-label="Ver próxima mídia"><ChevronRight size={18} /></button><span className="carousel-count">{visibleMediaIndex + 1}/{post.media.length}</span></> : null}</div>{post.media.length > 1 ? <div className="carousel-dots detail-carousel-dots" aria-label="Mídias do carrossel">{post.media.map((item, index) => <button className={index === visibleMediaIndex ? "active" : ""} key={item.id} onClick={() => setMediaIndex(index)} aria-label={`Ver mídia ${index + 1}`} />)}</div> : null}</> : null}
         <dl><div><dt>Formato</dt><dd>{POST_FORMAT_LABELS[post.format]}</dd></div><div><dt>Fuso horário</dt><dd>São Paulo (GMT-3)</dd></div></dl>
         <div className="post-detail-copy"><span>Legenda</span><p>{post.caption || "Sem legenda."}</p>{post.firstComment ? <><span>Primeiro comentário</span><p>{post.firstComment}</p></> : null}</div>
         {post.status === "failed" ? <div className="post-failure"><AlertCircle size={16} /><div><strong>Falha na publicação</strong><p>{post.failureMessage ?? "A plataforma não informou detalhes da falha."}</p></div></div> : null}
         {error ? <p className="inline-error"><AlertCircle size={14} /> {error}</p> : null}
-        <footer><button className="secondary-button" onClick={() => onEdit(post)}><Pencil size={15} /> Editar conteúdo</button><button className="primary-button" onClick={() => void duplicate()} disabled={duplicating}><Copy size={15} /> {duplicating ? "Duplicando…" : "Duplicar como rascunho"}</button></footer>
+        <footer>{post.status === "draft" ? <button className="secondary-button danger-button" onClick={() => void deleteDraft()} disabled={deleting}><Trash2 size={15} /> {deleting ? "Excluindo…" : "Excluir rascunho"}</button> : null}<button className="secondary-button" onClick={() => onEdit(post)}><Pencil size={15} /> Editar conteúdo</button><button className="primary-button" onClick={() => void duplicate()} disabled={duplicating}><Copy size={15} /> {duplicating ? "Duplicando…" : "Duplicar como rascunho"}</button></footer>
       </section>
     </div>
   );

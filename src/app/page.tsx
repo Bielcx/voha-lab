@@ -1,42 +1,29 @@
 "use client";
 
-import Image from "next/image";
 import {
   AlertCircle,
-  AtSign,
   Bell,
   CalendarDays,
   Check,
   ChevronDown,
   CircleHelp,
-  Clock3,
   Command,
-  FileText,
-  Grid2X2,
-  Heart,
   History,
   Home,
   ImageIcon,
-  LayoutGrid,
   Library,
   LogOut,
   Menu,
-  MessageCircle,
   Moon,
-  MoreHorizontal,
   Plus,
   Search,
-  Send,
   Settings,
-  SlidersHorizontal,
-  Smile,
-  Sparkles,
   Sun,
   Users,
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import {
   CalendarView,
@@ -50,6 +37,7 @@ import type { OperationalPost } from "@/lib/posts/types";
 import type { WorkspaceBootstrapResult, WorkspaceClientSummary } from "@/lib/types/workspace";
 import { MediaLibrary } from "@/components/media-library";
 import { ClientManagement } from "@/components/client-management";
+import { ContentCreator } from "@/components/content-creator";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
 
@@ -76,15 +64,6 @@ const instagramOAuthErrors: Record<string, string> = {
   session_mismatch: "Sua sessão mudou durante a autorização. Entre novamente e repita o processo.",
   client_not_found: "O cliente desta autorização não foi encontrado.",
 };
-
-const media = [
-  { id: 1, src: "https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=85", alt: "Interior acolhedor do Alba Café", type: "Imagem", client: "Alba Café" },
-  { id: 2, src: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=85", alt: "Café sendo preparado", type: "Reel", client: "Alba Café" },
-  { id: 3, src: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=900&q=85", alt: "Produtos de skincare Noma Skin", type: "Carrossel", client: "Noma Skin" },
-  { id: 4, src: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=900&q=85", alt: "Prática de yoga", type: "Imagem", client: "Sopro Yoga" },
-  { id: 5, src: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=85", alt: "Plantas do Flora Studio", type: "Reel", client: "Flora Studio" },
-  { id: 6, src: "https://images.unsplash.com/photo-1511081692775-05d0f180a065?auto=format&fit=crop&w=900&q=85", alt: "Detalhes artesanais", type: "Imagem", client: "Flora Studio" },
-];
 
 const pixelHeart = [
   "031000130",
@@ -269,48 +248,6 @@ function WeekView({ onCreate }: { onCreate: () => void }) {
 }
 
 */
-function CreatorView({ initialPost }: { initialPost?: OperationalPost | null }) {
-  const accountName = initialPost?.clientName ?? "Alba Café";
-  const accountColor = initialPost?.clientColor ?? "#B66A3C";
-  const accountHandle = initialPost?.clientHandle ?? "@albacafe";
-  const mediaSrc = initialPost?.thumbnailUrl ?? media[0].src;
-  const [caption, setCaption] = useState(initialPost?.caption ?? "Manhãs sem pressa começam com café feito na hora. ☕\n\nPassa aqui para experimentar nosso novo microlote da Serra da Mantiqueira.");
-  const [comment, setComment] = useState(initialPost?.firstComment ?? "Origem: Carmo de Minas · Notas de caramelo, chocolate e frutas amarelas ✨");
-  const [format, setFormat] = useState(initialPost ? { image: "Imagem", carousel: "Carrossel", reel: "Reel" }[initialPost.format] : "Imagem");
-  const [scheduled, setScheduled] = useState(initialPost ? initialPost.status === "scheduled" : true);
-  const [saved, setSaved] = useState(false);
-  const [mobilePane, setMobilePane] = useState<"edit" | "preview">("edit");
-  return (
-    <main className={`creator-view mobile-${mobilePane}`}>
-      <div className="creator-mobile-tabs" aria-label="Visualização do conteúdo"><button className={mobilePane === "edit" ? "selected" : ""} onClick={() => setMobilePane("edit")}><SlidersHorizontal size={16} /> Editar</button><button className={mobilePane === "preview" ? "selected" : ""} onClick={() => setMobilePane("preview")}><InstagramPreviewIcon /> Preview</button></div>
-      <section className="composer-panel">
-        <div className="composer-head"><div><span className="eyebrow">{initialPost ? "EDITAR CONTEÚDO" : "CRIAR CONTEÚDO"}</span><h1>{initialPost ? "Editar post" : "Novo post"}</h1></div><div className="save-state">{saved ? <><Check size={14} /> Salvo localmente</> : initialPost ? "Edição em andamento" : "Rascunho local"}</div></div>
-        <div className="form-section"><label>Publicar em</label><button className="account-select"><Avatar name={accountName} color={accountColor} size="md" /><span><strong>{accountName}</strong><small>{accountHandle} · Instagram</small></span><AtSign size={17} /><ChevronDown size={15} /></button></div>
-        <div className="form-section"><label>Formato</label><div className="format-options">{[{ name: "Imagem", icon: ImageIcon }, { name: "Carrossel", icon: LayoutGrid }, { name: "Reel", icon: Grid2X2 }].map(({ name, icon: Icon }) => <button key={name} className={format === name ? "selected" : ""} onClick={() => setFormat(name)}><Icon size={17} />{name}</button>)}</div></div>
-        <div className="form-section"><div className="label-row"><label>Mídia</label><span>1080 × 1350 px</span></div><div className="selected-media"><Image src={mediaSrc} alt={initialPost?.mediaName ?? media[0].alt} fill sizes="120px" unoptimized={Boolean(initialPost?.thumbnailUrl)} /><div className="media-actions"><button aria-label="Editar mídia"><SlidersHorizontal size={15} /></button><button aria-label="Remover mídia"><X size={15} /></button></div></div><button className="upload-inline"><Plus size={15} /> Adicionar {format === "Carrossel" ? "outra mídia" : "mídia"}</button></div>
-        <div className="form-section"><div className="label-row"><label htmlFor="caption">Legenda</label><button><Sparkles size={14} /> Melhorar texto</button></div><div className="text-area-wrap"><textarea id="caption" value={caption} maxLength={2200} onChange={(event) => setCaption(event.target.value)} /><div className="text-toolbar"><span><button aria-label="Adicionar emoji"><Smile size={16} /></button><button aria-label="Adicionar arquivo"><FileText size={16} /></button></span><small>{caption.length} / 2.200</small></div></div></div>
-        <div className="form-section"><div className="label-row"><label htmlFor="comment">Primeiro comentário</label><span>Opcional</span></div><div className="text-area-wrap compact"><textarea id="comment" value={comment} maxLength={1000} onChange={(event) => setComment(event.target.value)} /><div className="text-toolbar"><span><button aria-label="Adicionar emoji"><Smile size={16} /></button></span><small>{comment.length} / 1.000</small></div></div></div>
-        <div className="form-section publish-options"><label>Quando publicar?</label><div className="radio-list"><button className={!scheduled ? "selected" : ""} onClick={() => setScheduled(false)}><span className="radio"><i /></span><span><strong>Publicar agora</strong><small>O conteúdo será enviado imediatamente</small></span></button><button className={scheduled ? "selected" : ""} onClick={() => setScheduled(true)}><span className="radio"><i /></span><span><strong>Agendar publicação</strong><small>Escolha a melhor data e horário</small></span></button></div>{scheduled ? <div className="schedule-fields"><button><CalendarDays size={16} /><span><small>Data</small><strong>18 de julho de 2026</strong></span><ChevronDown size={14} /></button><button><Clock3 size={16} /><span><small>Horário</small><strong>10:00</strong></span><ChevronDown size={14} /></button></div> : null}</div>
-        <div className="composer-footer"><button className="secondary-button" onClick={() => setSaved(true)}>Salvar rascunho</button><button className="primary-button" onClick={() => setSaved(true)}>{scheduled ? <><CalendarDays size={16} /> Agendar publicação</> : <><Send size={16} /> Publicar agora</>}</button></div>
-      </section>
-      <aside className="preview-panel">
-        <div className="preview-heading"><div><span>Preview</span><small>Instagram feed</small></div><div className="segmented compact-segment"><button className="selected">Feed</button><button>Perfil</button></div></div>
-        <div className="phone-preview">
-          <div className="insta-head"><div><Avatar name={accountName} color={accountColor} size="sm" /><span><strong>{accountHandle.replace("@", "")}</strong><small>São Paulo, SP</small></span></div><MoreHorizontal size={19} /></div>
-          <div className="post-image"><Image src={mediaSrc} alt={initialPost?.mediaName ?? media[0].alt} fill sizes="420px" priority unoptimized={Boolean(initialPost?.thumbnailUrl)} /></div>
-          <div className="insta-actions"><span><Heart size={23} /><MessageCircle size={22} /><Send size={21} /></span><Library size={21} /></div>
-          <div className="insta-copy"><strong>187 curtidas</strong><p><b>{accountHandle.replace("@", "")}</b> {caption}</p><span>Ver todos os 12 comentários</span><p className="comment-preview"><b>{accountHandle.replace("@", "")}</b> {comment}</p><small>HÁ ALGUNS SEGUNDOS</small></div>
-        </div>
-        <div className="preview-note"><Sparkles size={16} /><span><strong>Seu post está com uma boa leitura.</strong><small>A legenda aparece completa antes do “mais”.</small></span></div>
-      </aside>
-    </main>
-  );
-}
-
-function InstagramPreviewIcon() {
-  return <span className="preview-icon" aria-hidden="true"><span /></span>;
-}
-
 /* Legacy static history prototype retained temporarily for visual reference.
 function HistoryView() {
   const rows = [
@@ -364,6 +301,11 @@ export default function HomePage() {
   const [postsVersion, setPostsVersion] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [createClientRequest, setCreateClientRequest] = useState(0);
+  const creatorBeforeLeaveRef = useRef<(() => Promise<boolean>) | null>(null);
+
+  const registerCreatorBeforeLeave = useCallback((handler: (() => Promise<boolean>) | null) => {
+    creatorBeforeLeaveRef.current = handler;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -447,7 +389,14 @@ export default function HomePage() {
     window.location.assign("/login");
   }
 
-  function navigate(view: View) {
+  async function navigate(view: View) {
+    if (active === "creator" && view !== "creator" && creatorBeforeLeaveRef.current) {
+      const saved = await creatorBeforeLeaveRef.current();
+      if (!saved) {
+        setNotice("Não foi possível salvar as últimas alterações. Tente novamente antes de sair.");
+        return;
+      }
+    }
     if (view === "creator") setEditingPost(null);
     setActive(view);
   }
@@ -470,10 +419,17 @@ export default function HomePage() {
     setNotice("Publicação duplicada como rascunho.");
   }
 
+  function handleDeleted(postId: string) {
+    window.dispatchEvent(new CustomEvent("voha:post-deleted", { detail: postId }));
+    setSelectedPost(null);
+    setPostsVersion((version) => version + 1);
+    setNotice("Rascunho excluído.");
+  }
+
   if (!authReady) {
     return <main className="auth-loading" aria-label="Validando sua sessão"><span className="login-pixel-heart" aria-hidden="true">{Array.from({ length: 63 }, (_, index) => <i key={index} />)}</span><p>Preparando seu calendário…</p></main>;
   }
 
-  const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <CreatorView initialPost={editingPost} /> : active === "clients" ? <ClientManagement key={createClientRequest} clients={workspaceClients} backendEnabled={isSupabaseConfigured()} onClientsChange={setWorkspaceClients} onOpenCalendar={() => navigate("calendar")} onNotice={setNotice} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} />;
-  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} onAddClient={openNewClient} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
+  const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <ContentCreator initialPost={editingPost} clients={workspaceClients} onDraftSaved={() => setPostsVersion((version) => version + 1)} registerBeforeLeave={registerCreatorBeforeLeave} /> : active === "clients" ? <ClientManagement key={createClientRequest} clients={workspaceClients} backendEnabled={isSupabaseConfigured()} onClientsChange={setWorkspaceClients} onOpenCalendar={() => navigate("calendar")} onNotice={setNotice} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} />;
+  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} onAddClient={openNewClient} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} onDeleted={handleDeleted} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
 }
