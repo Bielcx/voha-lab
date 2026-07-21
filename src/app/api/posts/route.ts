@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireWorkspaceAccess } from "@/lib/media/access";
+import { validateWorkspaceClient } from "@/lib/media/access";
 import { mediaStorage } from "@/lib/storage/r2";
+import { savePostDraftSchema, validateDraftMedia } from "@/lib/posts/draft";
 import {
   POST_STATUSES,
   type OperationalPost,
+  type OperationalPostMedia,
   type PostFormat,
   type PostListResponse,
   type PostStatus,
+  type SavePostDraftResponse,
 } from "@/lib/posts/types";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +41,7 @@ type MediaRelation = {
   id: string;
   original_name: string;
   storage_key: string;
+  kind: "image" | "video";
 };
 
 type PostMediaRelation = {
@@ -65,11 +70,10 @@ function firstRelation<T>(relation: T | T[] | null | undefined) {
   return Array.isArray(relation) ? (relation[0] ?? null) : (relation ?? null);
 }
 
-function firstMedia(row: PostRow) {
-  const sorted = [...(row.post_media ?? [])].sort(
+function orderedMedia(row: PostRow) {
+  return [...(row.post_media ?? [])].sort(
     (left, right) => left.position - right.position,
-  );
-  return firstRelation(sorted[0]?.media_assets);
+  ).map((item) => firstRelation(item.media_assets)).filter((item): item is MediaRelation => Boolean(item));
 }
 
 export async function GET(request: Request) {
@@ -97,7 +101,7 @@ export async function GET(request: Request) {
   let query = access.supabase
     .from("posts")
     .select(
-      "id, client_id, format, status, caption, first_comment, scheduled_for, published_at, created_at, updated_at, failure_code, failure_message, clients(id, name, instagram_handle, brand_color), post_media(position, media_assets(id, original_name, storage_key))",
+      "id, client_id, format, status, caption, first_comment, scheduled_for, published_at, created_at, updated_at, failure_code, failure_message, clients(id, name, instagram_handle, brand_color), post_media(position, media_assets(id, original_name, storage_key, kind))",
       { count: "exact" },
     )
     .eq("workspace_id", access.workspaceId)
@@ -125,16 +129,20 @@ export async function GET(request: Request) {
   const items: OperationalPost[] = await Promise.all(
     rows.map(async (row) => {
       const client = firstRelation(row.clients);
-      const media = firstMedia(row);
-      let thumbnailUrl: string | null = null;
-
-      if (media) {
+      const mediaRows = orderedMedia(row);
+      const media = (await Promise.all(mediaRows.map(async (item): Promise<OperationalPostMedia | null> => {
         try {
-          thumbnailUrl = await mediaStorage.createDownloadUrl(media.storage_key);
+          return {
+            id: item.id,
+            originalName: item.original_name,
+            kind: item.kind,
+            url: await mediaStorage.createDownloadUrl(item.storage_key),
+          };
         } catch {
-          // A post remains useful when a temporary thumbnail URL cannot be signed.
+          return null;
         }
-      }
+      }))).filter((item): item is OperationalPostMedia => Boolean(item));
+      const firstMedia = media[0] ?? null;
 
       return {
         id: row.id,
@@ -152,8 +160,9 @@ export async function GET(request: Request) {
         updatedAt: row.updated_at,
         failureCode: row.failure_code,
         failureMessage: row.failure_message,
-        thumbnailUrl,
-        mediaName: media?.original_name ?? null,
+        thumbnailUrl: firstMedia?.url ?? null,
+        mediaName: firstMedia?.originalName ?? null,
+        media,
       };
     }),
   );
@@ -166,4 +175,109 @@ export async function GET(request: Request) {
   };
 
   return NextResponse.json(response);
+}
+
+export async function POST(request: Request) {
+  const access = await requireWorkspaceAccess({ editor: true });
+  if (!access.ok) return access.response;
+
+  const body = await request.json().catch(() => null);
+  const parsed = savePostDraftSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Revise os dados do rascunho e tente novamente." },
+      { status: 400 },
+    );
+  }
+
+  const draft = parsed.data;
+  if (!await validateWorkspaceClient(access.supabase, access.workspaceId, draft.clientId)) {
+    return NextResponse.json(
+      { error: "O cliente selecionado não pertence a este workspace." },
+      { status: 400 },
+    );
+  }
+
+  const { data: mediaRows, error: mediaError } = draft.mediaIds.length > 0
+    ? await access.supabase
+        .from("media_assets")
+        .select("id, client_id, kind, mime_type")
+        .eq("workspace_id", access.workspaceId)
+        .eq("status", "ready")
+        .is("deleted_at", null)
+        .in("id", draft.mediaIds)
+    : { data: [], error: null };
+
+  if (mediaError) {
+    return NextResponse.json(
+      { error: "Não foi possível validar as mídias selecionadas." },
+      { status: 500 },
+    );
+  }
+
+  const mediaValidationError = validateDraftMedia(
+    draft,
+    (mediaRows ?? []).map((row) => ({
+      id: row.id,
+      clientId: row.client_id,
+      kind: row.kind,
+      mimeType: row.mime_type,
+    })),
+  );
+  if (mediaValidationError) {
+    return NextResponse.json({ error: mediaValidationError }, { status: 400 });
+  }
+
+  const { data: account } = await access.supabase
+    .from("instagram_accounts")
+    .select("id")
+    .eq("workspace_id", access.workspaceId)
+    .eq("client_id", draft.clientId)
+    .eq("connection_status", "connected")
+    .maybeSingle();
+
+  const { data: post, error: postError } = await access.supabase
+    .from("posts")
+    .insert({
+      workspace_id: access.workspaceId,
+      client_id: draft.clientId,
+      instagram_account_id: account?.id ?? null,
+      created_by: access.user.id,
+      format: draft.format,
+      status: "draft",
+      caption: draft.caption,
+      first_comment: draft.firstComment,
+    })
+    .select("id, updated_at")
+    .single();
+
+  if (postError) {
+    return NextResponse.json(
+      { error: "Não foi possível criar o rascunho." },
+      { status: 500 },
+    );
+  }
+
+  if (draft.mediaIds.length > 0) {
+    const { error } = await access.supabase.from("post_media").insert(
+      draft.mediaIds.map((mediaAssetId, position) => ({
+        post_id: post.id,
+        media_asset_id: mediaAssetId,
+        position,
+      })),
+    );
+    if (error) {
+      await access.supabase.from("posts").delete().eq("id", post.id);
+      return NextResponse.json(
+        { error: "Não foi possível associar as mídias ao rascunho." },
+        { status: 500 },
+      );
+    }
+  }
+
+  const response: SavePostDraftResponse = {
+    id: post.id,
+    updatedAt: post.updated_at,
+  };
+  return NextResponse.json(response, { status: 201 });
 }

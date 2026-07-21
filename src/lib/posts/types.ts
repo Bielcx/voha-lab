@@ -11,6 +11,13 @@ export type PostStatus = (typeof POST_STATUSES)[number];
 
 export type PostFormat = "image" | "carousel" | "reel";
 
+export type OperationalPostMedia = {
+  id: string;
+  originalName: string;
+  kind: "image" | "video";
+  url: string;
+};
+
 export type OperationalPost = {
   id: string;
   clientId: string;
@@ -29,12 +36,50 @@ export type OperationalPost = {
   failureMessage: string | null;
   thumbnailUrl: string | null;
   mediaName: string | null;
+  media: OperationalPostMedia[];
 };
 
 export type PostListResponse = {
   items: OperationalPost[];
   nextOffset: number | null;
   total: number;
+};
+
+export type PostDraftMedia = {
+  id: string;
+  clientId: string | null;
+  originalName: string;
+  mimeType: string;
+  kind: "image" | "video";
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+  url: string;
+};
+
+export type PostDraft = {
+  id: string;
+  clientId: string;
+  format: PostFormat;
+  status: PostStatus;
+  caption: string;
+  firstComment: string;
+  createdAt: string;
+  updatedAt: string;
+  media: PostDraftMedia[];
+};
+
+export type SavePostDraftRequest = {
+  clientId: string;
+  format: PostFormat;
+  caption: string;
+  firstComment: string;
+  mediaIds: string[];
+};
+
+export type SavePostDraftResponse = {
+  id: string;
+  updatedAt: string;
 };
 
 export const POST_STATUS_LABELS: Record<PostStatus, string> = {
