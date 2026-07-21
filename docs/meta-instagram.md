@@ -66,12 +66,10 @@ Instagram**, cadastre exatamente:
 https://voha-lab.biel-cavalcanti1.workers.dev/api/instagram/callback
 ```
 
-Para testar localmente, adicione também a URL equivalente ao valor usado em
-`NEXT_PUBLIC_APP_URL`, por exemplo:
-
-```text
-http://localhost:3000/api/instagram/callback
-```
+No fluxo atual, a Meta rejeitou o callback local sem HTTPS. O teste OAuth do MVP
+deve ser feito pelo Worker publicado. Se precisarmos depurar o callback
+localmente no futuro, usaremos um túnel HTTPS temporário e cadastraremos a URL
+exata fornecida por ele.
 
 O protocolo, domínio, porta, caminho e barra final precisam coincidir com a URL
 enviada pelo Voha. Cada ambiente deve ter seu próprio `NEXT_PUBLIC_APP_URL`.
@@ -92,10 +90,11 @@ Checklist:
 
 - [ ] Aplicar a migration `202607200001_instagram_account_per_client.sql`.
 - [ ] Preencher as três variáveis localmente, sem compartilhar os valores.
-- [ ] Cadastrar as redirect URIs local e de produção na Meta.
+- [ ] Cadastrar a redirect URI de produção na Meta.
 - [ ] Conectar a conta da Larissa a um cliente pelo botão do Voha.
 - [ ] Confirmar que o card mostra o `@usuario` e o estado **Instagram conectado**.
-- [ ] Renovar a conexão e confirmar que ela continua conectada.
+- [ ] Confirmar que a interface classifica o token próximo do vencimento como
+  **Expirando** e então oferece a ação **Renovar**.
 - [ ] Desconectar, confirmar o estado, e conectar novamente.
 - [ ] Verificar que respostas e logs não contêm `access_token`, App Secret ou chave.
 
