@@ -69,6 +69,7 @@ Segredos somente de runtime:
 - `META_INSTAGRAM_APP_ID`
 - `META_INSTAGRAM_APP_SECRET`
 - `META_TOKEN_ENCRYPTION_KEY`
+- `VOHA_CRON_SECRET`, com no mínimo 32 caracteres, configurado como segredo de runtime e compartilhado somente entre o Cron Trigger e o Worker
 
 Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `.dev.vars` ou os valores dos segredos ao Git.
 
@@ -88,8 +89,11 @@ Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `
 - [x] Exclusão lógica no Supabase e remoção do objeto de teste no R2.
 - [x] Biblioteca sem overflow horizontal em viewport mobile de 390×844.
 - [x] Logs do fluxo de mídia sem segredos, chaves de objeto ou URLs assinadas.
-- [ ] OAuth do Instagram com a conta testadora da Larissa.
-- [ ] Token do Instagram criptografado e ausente dos logs.
+- [x] OAuth do Instagram com a conta testadora da Larissa.
+- [x] Token do Instagram criptografado e ausente dos logs.
+- [x] Migration `202607210001_publication_engine.sql` aplicada no Supabase.
+- [x] `VOHA_CRON_SECRET` configurado no `.env.local` e como segredo de runtime do Worker.
+- [ ] Cron de publicação executando uma vez por minuto em produção.
 
 ## Retorno seguro
 

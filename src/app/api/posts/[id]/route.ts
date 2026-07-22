@@ -135,15 +135,15 @@ export async function PATCH(
 
   const { data: existing, error: existingError } = await access.supabase
     .from("posts")
-    .select("id, status, post_media(media_asset_id, position)")
+    .select("id, status, publication_cycle, post_media(media_asset_id, position)")
     .eq("id", id)
     .eq("workspace_id", access.workspaceId)
     .is("deleted_at", null)
     .maybeSingle();
   if (existingError) return NextResponse.json({ error: "Não foi possível consultar o rascunho." }, { status: 500 });
   if (!existing) return NextResponse.json({ error: "Rascunho não encontrado." }, { status: 404 });
-  if (existing.status !== "draft") {
-    return NextResponse.json({ error: "Somente rascunhos podem ser alterados neste fluxo." }, { status: 409 });
+  if (existing.status !== "draft" && existing.status !== "failed") {
+    return NextResponse.json({ error: "Somente rascunhos ou publicações com falha podem ser alterados neste fluxo." }, { status: 409 });
   }
 
   if (!await validateWorkspaceClient(access.supabase, access.workspaceId, draft.clientId)) {
@@ -186,6 +186,14 @@ export async function PATCH(
       format: draft.format,
       caption: draft.caption,
       first_comment: draft.firstComment,
+      ...(existing.status === "failed" ? {
+        status: "draft",
+        scheduled_for: null,
+        failure_code: null,
+        failure_message: null,
+        next_retry_at: null,
+        publication_cycle: existing.publication_cycle + 1,
+      } : {}),
     })
     .eq("id", id)
     .eq("workspace_id", access.workspaceId);

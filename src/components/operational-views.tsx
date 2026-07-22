@@ -621,7 +621,7 @@ export function PostDetailModal({ post, onClose, onEdit, onDuplicated, onDeleted
         <div className="post-detail-copy"><span>Legenda</span><p>{post.caption || "Sem legenda."}</p>{post.firstComment ? <><span>Primeiro comentário</span><p>{post.firstComment}</p></> : null}</div>
         {post.status === "failed" ? <div className="post-failure"><AlertCircle size={16} /><div><strong>Falha na publicação</strong><p>{post.failureMessage ?? "A plataforma não informou detalhes da falha."}</p></div></div> : null}
         {error ? <p className="inline-error"><AlertCircle size={14} /> {error}</p> : null}
-        <footer>{post.status === "draft" ? <button className="secondary-button danger-button" onClick={() => void deleteDraft()} disabled={deleting}><Trash2 size={15} /> {deleting ? "Excluindo…" : "Excluir rascunho"}</button> : null}<button className="secondary-button" onClick={() => onEdit(post)}><Pencil size={15} /> Editar conteúdo</button><button className="primary-button" onClick={() => void duplicate()} disabled={duplicating}><Copy size={15} /> {duplicating ? "Duplicando…" : "Duplicar como rascunho"}</button></footer>
+        <footer>{post.status === "draft" ? <button className="secondary-button danger-button" onClick={() => void deleteDraft()} disabled={deleting}><Trash2 size={15} /> {deleting ? "Excluindo…" : "Excluir rascunho"}</button> : null}{post.status === "draft" || post.status === "failed" ? <button className="secondary-button" onClick={() => onEdit(post)}><Pencil size={15} /> Editar conteúdo</button> : null}<button className="primary-button" onClick={() => void duplicate()} disabled={duplicating}><Copy size={15} /> {duplicating ? "Duplicando…" : "Duplicar como rascunho"}</button></footer>
       </section>
     </div>
   );

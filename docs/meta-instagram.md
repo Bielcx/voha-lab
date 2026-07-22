@@ -49,7 +49,9 @@ chave nova no PowerShell:
 
 ```powershell
 $bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$rng.Dispose()
 [Convert]::ToBase64String($bytes)
 ```
 
@@ -88,15 +90,50 @@ aceito em **Funções → Testadores do Instagram**.
 
 Checklist:
 
-- [ ] Aplicar a migration `202607200001_instagram_account_per_client.sql`.
-- [ ] Preencher as três variáveis localmente, sem compartilhar os valores.
-- [ ] Cadastrar a redirect URI de produção na Meta.
-- [ ] Conectar a conta da Larissa a um cliente pelo botão do Voha.
-- [ ] Confirmar que o card mostra o `@usuario` e o estado **Instagram conectado**.
+- [x] Aplicar a migration `202607200001_instagram_account_per_client.sql`.
+- [x] Preencher as três variáveis localmente, sem compartilhar os valores.
+- [x] Cadastrar a redirect URI de produção na Meta.
+- [x] Conectar a conta da Larissa a um cliente pelo botão do Voha.
+- [x] Confirmar que o card mostra o `@usuario` e o estado **Instagram conectado**.
 - [ ] Confirmar que a interface classifica o token próximo do vencimento como
   **Expirando** e então oferece a ação **Renovar**.
-- [ ] Desconectar, confirmar o estado, e conectar novamente.
-- [ ] Verificar que respostas e logs não contêm `access_token`, App Secret ou chave.
+- [x] Desconectar, confirmar o estado, e conectar novamente.
+- [x] Verificar que respostas e logs não contêm `access_token`, App Secret ou chave.
+
+## Agendamento e publicação
+
+O criador salva o rascunho antes de agendar. O endpoint de agendamento valida
+conta, validade do token, quantidade e MIME das mídias e então altera o estado
+para `scheduled`. O Cron Trigger do Cloudflare executa a fila a cada minuto.
+
+O fluxo da Meta usa Graph API `v25.0`:
+
+1. criar os containers de mídia;
+2. aguardar `status_code = FINISHED`, principalmente para Reels;
+3. registrar `publish_dispatched` no Supabase;
+4. chamar `media_publish`;
+5. persistir o ID retornado e concluir o post como `published`.
+
+São feitas no máximo três tentativas com espera crescente. Falha de rede durante
+`media_publish` não é repetida automaticamente, pois a Meta pode ter publicado
+mesmo sem devolver a resposta ao Worker.
+
+Configure `VOHA_CRON_SECRET` como segredo do Worker e também em `.env.local` para
+testes. Ele deve ter ao menos 32 caracteres aleatórios e nunca deve ser enviado ao
+navegador ou registrado em logs.
+
+No fluxo atual da API com Instagram Login, a automação de um novo comentário de
+topo não está documentada pela coleção oficial da Meta. O primeiro comentário
+continua salvo no Voha para revisão/cópia, mas não é enviado automaticamente nesta
+etapa. Não adicionamos permissões de comentários sem uma API oficial necessária.
+
+Validação real concluída em 22 de julho de 2026 com a conta testadora:
+
+- [x] imagem JPEG publicada e persistida como `published`;
+- [x] carrossel com duas imagens JPEG publicado e persistido como `published`;
+- [x] Reel MP4 publicado e persistido como `published`;
+- [x] horários de 11:10 e 11:13 persistidos; o motor local só despachou itens já devidos;
+- [x] nenhuma resposta sensível exposta durante os testes.
 
 ## Publicação e App Review
 

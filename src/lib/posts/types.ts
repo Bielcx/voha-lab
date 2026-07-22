@@ -82,6 +82,17 @@ export type SavePostDraftResponse = {
   updatedAt: string;
 };
 
+export type SchedulePostRequest =
+  | { mode: "now" }
+  | { mode: "schedule"; scheduledFor: string };
+
+export type SchedulePostResponse = {
+  id: string;
+  status: "scheduled";
+  scheduledFor: string;
+  mode: "now" | "schedule";
+};
+
 export const POST_STATUS_LABELS: Record<PostStatus, string> = {
   draft: "Rascunho",
   pending_approval: "Aguardando aprovação",
