@@ -65,6 +65,13 @@ draft → pending_approval → scheduled → publishing → published
 
 `publication_attempts` registra cada chamada futura à Meta API. Tokens do Instagram ficam separados em `instagram_credentials`, sem acesso pelas roles `anon` e `authenticated`.
 
+O Worker possui um Cron Trigger a cada minuto. Cada execução chama internamente a
+rota de publicação usando `VOHA_CRON_SECRET`, reivindica no máximo três posts com
+`FOR UPDATE SKIP LOCKED` e registra a tentativa antes de acessar a Meta. Uma
+tentativa abandonada antes de `media_publish` pode ser repetida; depois que a
+chamada final foi despachada, o Voha exige conferência manual para não duplicar o
+post caso a resposta tenha se perdido.
+
 ## Próximas integrações
 
 1. Concluir e validar o fluxo de mídias da issue #3.

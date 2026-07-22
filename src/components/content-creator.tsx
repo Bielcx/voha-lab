@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   AtSign,
+  CalendarClock,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -39,6 +40,8 @@ import type {
   PostFormat,
   SavePostDraftRequest,
   SavePostDraftResponse,
+  SchedulePostRequest,
+  SchedulePostResponse,
 } from "@/lib/posts/types";
 import type { WorkspaceClientSummary } from "@/lib/types/workspace";
 
@@ -84,11 +87,13 @@ export function ContentCreator({
   initialPost,
   clients,
   onDraftSaved,
+  onScheduled,
   registerBeforeLeave,
 }: {
   initialPost?: OperationalPost | null;
   clients: WorkspaceClientSummary[];
   onDraftSaved?: () => void;
+  onScheduled?: (result: SchedulePostResponse) => void;
   registerBeforeLeave?: (handler: (() => Promise<boolean>) | null) => void;
 }) {
   const backendEnabled = isSupabaseConfigured();
@@ -109,6 +114,16 @@ export function ContentCreator({
   const [loadError, setLoadError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState("");
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState<"now" | "schedule">("now");
+  const [scheduledLocal, setScheduledLocal] = useState(() => {
+    const date = new Date(Date.now() + 30 * 60_000);
+    date.setMinutes(Math.ceil(date.getMinutes() / 5) * 5, 0, 0);
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  });
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
   const [revision, setRevision] = useState(0);
   const [savedAt, setSavedAt] = useState<string | null>(initialPost?.updatedAt ?? null);
 
@@ -346,6 +361,39 @@ export function ContentCreator({
     markChanged();
   }
 
+  async function schedulePost() {
+    setScheduling(true);
+    setScheduleError("");
+    try {
+      const saved = await saveDraft();
+      const postId = draftIdRef.current;
+      if (!saved || !postId) throw new Error("Salve o rascunho antes de continuar.");
+
+      const requestBody: SchedulePostRequest = scheduleMode === "now"
+        ? { mode: "now" }
+        : { mode: "schedule", scheduledFor: new Date(scheduledLocal).toISOString() };
+      const response = await fetch(`/api/posts/${postId}/schedule`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const result = await response.json().catch(() => null);
+      if (response.status === 401) {
+        window.location.assign("/login");
+        return;
+      }
+      if (!response.ok) throw new Error(getErrorMessage(result, "Não foi possível agendar a publicação."));
+
+      dirtyRef.current = false;
+      setScheduleOpen(false);
+      onScheduled?.(result as SchedulePostResponse);
+    } catch (error) {
+      setScheduleError(error instanceof Error ? error.message : "Não foi possível agendar a publicação.");
+    } finally {
+      setScheduling(false);
+    }
+  }
+
   const compatibleLibrary = libraryItems.filter((item) => formatAllowsMedia(format, item));
   const saveLabel = saveState === "saving"
     ? "Salvando…"
@@ -429,7 +477,7 @@ export function ContentCreator({
         <div className="composer-footer">
           <span className="autosave-note">O rascunho é salvo automaticamente</span>
           <button className="secondary-button" disabled={saveState === "saving" || !effectiveClientId} onClick={() => void saveDraft()}>{saveState === "saving" ? <LoaderCircle className="spin" size={15} /> : <Check size={15} />} Salvar agora</button>
-          <button className="primary-button" disabled title="Agendamento será implementado na próxima etapa"><Send size={16} /> Continuar</button>
+          <button className="primary-button" disabled={saveState === "saving" || !effectiveClientId || selectedMedia.length === 0} onClick={() => { setScheduleError(""); setScheduleOpen(true); }}><Send size={16} /> Continuar</button>
         </div>
       </section>
 
@@ -458,6 +506,22 @@ export function ContentCreator({
               return <button key={item.id} className={index >= 0 ? "selected" : ""} disabled={disabled} onClick={() => toggleMedia(item)}>{item.kind === "image" ? <Image src={item.url} alt={item.originalName} fill sizes="180px" unoptimized /> : <video src={item.url} muted playsInline />}<span className="picker-kind">{item.kind === "video" ? <Video size={13} /> : <ImageIcon size={13} />}</span>{index >= 0 ? <span className="picker-order">{index + 1}</span> : null}<small>{item.originalName}</small></button>;
             })}</div>}
             <footer><span>{selectedMedia.length} selecionada{selectedMedia.length === 1 ? "" : "s"}</span><button className="primary-button" onClick={() => setPickerOpen(false)}>Concluir</button></footer>
+          </section>
+        </div>
+      ) : null}
+
+      {scheduleOpen ? (
+        <div className="media-picker-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !scheduling) setScheduleOpen(false); }}>
+          <section className="schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="schedule-title">
+            <header><div><span className="eyebrow">PUBLICAÇÃO</span><h2 id="schedule-title">Quando deseja publicar?</h2><p>O Voha valida a conexão e as mídias antes de colocar o post na fila.</p></div><button className="icon-button" disabled={scheduling} onClick={() => setScheduleOpen(false)} aria-label="Fechar agendamento"><X size={18} /></button></header>
+            <div className="schedule-options">
+              <button className={scheduleMode === "now" ? "selected" : ""} onClick={() => setScheduleMode("now")}><Send size={18} /><span><strong>Publicar agora</strong><small>Entra na fila e normalmente inicia em até um minuto.</small></span></button>
+              <button className={scheduleMode === "schedule" ? "selected" : ""} onClick={() => setScheduleMode("schedule")}><CalendarClock size={18} /><span><strong>Escolher data e horário</strong><small>Usamos o horário local exibido no seu aparelho.</small></span></button>
+            </div>
+            {scheduleMode === "schedule" ? <label className="schedule-date"><span>Data e horário</span><input type="datetime-local" value={scheduledLocal} onChange={(event) => setScheduledLocal(event.target.value)} /></label> : null}
+            {firstComment.trim() ? <div className="schedule-comment-note"><MessageCircle size={16} /><span>O primeiro comentário ficará salvo no Voha, mas ainda não será enviado automaticamente nesta etapa.</span></div> : null}
+            {scheduleError ? <div className="creator-alert"><AlertCircle size={16} />{scheduleError}</div> : null}
+            <footer><button className="secondary-button" disabled={scheduling} onClick={() => setScheduleOpen(false)}>Voltar</button><button className="primary-button" disabled={scheduling || (scheduleMode === "schedule" && !scheduledLocal)} onClick={() => void schedulePost()}>{scheduling ? <LoaderCircle className="spin" size={16} /> : scheduleMode === "now" ? <Send size={16} /> : <CalendarClock size={16} />}{scheduling ? "Validando…" : scheduleMode === "now" ? "Publicar agora" : "Confirmar agendamento"}</button></footer>
           </section>
         </div>
       ) : null}

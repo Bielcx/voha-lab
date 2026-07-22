@@ -21,6 +21,10 @@ const instagramEnvSchema = z.object({
   META_TOKEN_ENCRYPTION_KEY: z.string().min(1),
 });
 
+const publicationEngineEnvSchema = z.object({
+  VOHA_CRON_SECRET: z.string().min(32),
+});
+
 export function getSupabaseAdminEnv() {
   return supabaseAdminEnvSchema.parse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -43,5 +47,11 @@ export function getInstagramEnv() {
     META_INSTAGRAM_APP_ID: process.env.META_INSTAGRAM_APP_ID,
     META_INSTAGRAM_APP_SECRET: process.env.META_INSTAGRAM_APP_SECRET,
     META_TOKEN_ENCRYPTION_KEY: process.env.META_TOKEN_ENCRYPTION_KEY,
+  });
+}
+
+export function getPublicationEngineEnv() {
+  return publicationEngineEnvSchema.parse({
+    VOHA_CRON_SECRET: process.env.VOHA_CRON_SECRET,
   });
 }

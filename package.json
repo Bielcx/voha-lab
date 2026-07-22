@@ -8,10 +8,10 @@
     "build:cloudflare": "opennextjs-cloudflare build",
     "preview:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv --strict-vars false cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/media/policy.test.ts src/lib/posts/dates.test.ts src/lib/posts/draft.test.ts src/lib/clients/form.test.ts src/lib/instagram/crypto.test.ts"
+    "test": "tsx --test src/lib/media/policy.test.ts src/lib/posts/dates.test.ts src/lib/posts/draft.test.ts src/lib/posts/scheduling.test.ts src/lib/clients/form.test.ts src/lib/instagram/crypto.test.ts src/lib/instagram/publishing.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",

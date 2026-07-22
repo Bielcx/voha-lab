@@ -1,8 +1,8 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "voha-lab",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2026-07-15",
+  "main": "custom-worker.ts",
+  "compatibility_date": "2026-07-21",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
@@ -13,5 +13,8 @@
   },
   "observability": {
     "enabled": true
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
   }
 }
