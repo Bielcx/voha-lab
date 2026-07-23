@@ -1,6 +1,6 @@
 # Custos, limites e continuidade do Voha
 
-> Documento vivo. Última revisão: 14 de julho de 2026. Valores em USD, antes de impostos e variação cambial. Sempre conferir as fontes oficiais antes de alterar um plano.
+> Documento vivo. Última revisão: 23 de julho de 2026. Valores em USD, antes de impostos e variação cambial. Sempre conferir as fontes oficiais antes de alterar um plano.
 
 ## Objetivo
 
@@ -15,15 +15,20 @@ Nenhum serviço deve ser atualizado para um plano pago ou ter o limite de gastos
 
 | Momento | Estimativa mensal | Observação |
 | --- | ---: | --- |
-| Desenvolvimento e testes | **US$ 0** | Vercel Hobby, Supabase Free e franquia gratuita do R2, respeitando limites e termos. |
-| Uso profissional confiável | **a partir de US$ 45** | Vercel Pro (US$ 20) + Supabase Pro (US$ 25). R2 tende a permanecer gratuito no volume inicial. |
+| Desenvolvimento e testes | **US$ 0** | Cloudflare Workers Free, Supabase Free, franquia do R2 e e-mail apenas para destino verificado. |
+| Uso profissional confiável | **a partir de US$ 25** | Supabase Pro; Workers Paid adiciona US$ 5 quando necessário. R2 tende a permanecer gratuito no volume inicial. |
 | Opcionais | variável | Domínio, e-mail transacional, monitoramento, backups avançados e assentos adicionais. |
 
-O plano Hobby da Vercel é restrito a uso pessoal e não comercial. Quando Larissa começar a usar o Voha efetivamente no trabalho, devemos planejar a migração para Pro, atualmente em US$ 20/mês. A Vercel informa que cada membro adicional do time também pode gerar cobrança de US$ 20/mês. [Vercel Hobby](https://vercel.com/docs/plans/hobby) e [preços da Vercel](https://vercel.com/pricing).
+A aplicação principal foi migrada para Cloudflare Workers. A seção da Vercel
+abaixo permanece somente como histórico/fallback e não deve orientar o custo
+atual do Voha.
 
 ## Serviços atuais
 
-### Vercel — aplicação, API e deployments
+### Vercel — deployment legado/fallback
+
+O Voha não depende mais da Vercel para produção. Não contratar ou ampliar plano
+nesse serviço sem uma decisão explícita de retorno.
 
 **Durante o desenvolvimento:** Hobby, desde que o uso continue pessoal e não comercial.
 
@@ -71,6 +76,25 @@ O Pro começa em US$ 25/mês, inclui o primeiro projeto Micro, 8 GB de banco, 25
 - alertar em 70%, 85% e 95% de banco e egress;
 - monitorar os códigos `402`, `540`, `544` e `546` nos logs.
 
+### Cloudflare Workers — aplicação, cron e alertas
+
+O plano Free inclui 100.000 requisições por dia e 10 ms de CPU por invocação. O
+Cron Trigger pode executar por até 15 minutos. O plano Workers Paid possui mínimo
+de US$ 5/mês, inclui 10 milhões de requisições e 30 milhões de CPU-ms por mês;
+excedentes são cobrados. [Preços oficiais do Workers](https://developers.cloudflare.com/workers/platform/pricing/).
+
+O Cloudflare Email Service pode enviar gratuitamente para endereços de destino
+verificados, inclusive no uso inicial. Envio para destinatários arbitrários exige
+Workers Paid; o plano inclui 3.000 e-mails/mês e cobra US$ 0,35 por mil e-mails
+adicionais. [Preços oficiais de e-mail](https://developers.cloudflare.com/email-service/platform/pricing/).
+
+Para Larissa, manter somente o endereço verificado e não ativar Workers Paid sem
+aprovação. Os alertas dentro do Voha não dependem do envio de e-mail.
+
+**Se parar:** filtre `operational_cron_failed` nos Workers Logs, confira o último
+`runId`, os Cron Events, o binding `EMAIL` e as variáveis do Worker. O procedimento
+completo está em `docs/operations.md`.
+
 ### Cloudflare R2 — imagens e Reels
 
 Usaremos somente a classe **Standard**. A franquia mensal atual é:
@@ -112,7 +136,7 @@ Antes do lançamento documentaremos a versão utilizada, permissões, limites, p
 | Serviço | Possível custo | Decisão necessária |
 | --- | --- | --- |
 | Domínio próprio | renovação anual e possível transferência | Comparar registrador antes da compra. |
-| E-mail transacional | excedente por e-mail ou plano mensal | Escolher provedor quando alertas externos forem implementados. |
+| E-mail transacional | gratuito para destino verificado; Workers Paid para arbitrários | Cloudflare Email Service escolhido; falta configurar domínio e remetente. |
 | Monitoramento de erros | plano mensal ou excedente de eventos | Avaliar Sentry/alternativa somente após logs internos. |
 | Backups avançados | Supabase Pro/PITR ou armazenamento externo | Definir antes de clientes reais. |
 | Assentos de equipe | Vercel cobra por membro no Pro | Evitar adicionar Larissa ao time técnico sem necessidade. |
@@ -131,7 +155,7 @@ Nunca criar retry infinito. Toda operação externa deve ter número máximo de 
 
 ## Checklist mensal
 
-- [ ] Conferir plano, fatura e uso da Vercel.
+- [ ] Conferir plano, requisições, CPU, Cron Events e e-mails da Cloudflare.
 - [ ] Conferir banco, egress, MAU e estado do projeto Supabase.
 - [ ] Conferir armazenamento e operações A/B do R2.
 - [ ] Conferir tokens próximos da expiração e falhas da Meta.
@@ -142,7 +166,7 @@ Nunca criar retry infinito. Toda operação externa deve ter número máximo de 
 
 ## Checklist antes de clientes reais
 
-- [ ] Confirmar Vercel Pro ou outra hospedagem autorizada para uso comercial.
+- [ ] Confirmar que Workers Free atende ao volume ou aprovar explicitamente Workers Paid.
 - [ ] Decidir Supabase Free versus Pro considerando pausa e ausência de backup automático.
 - [ ] Configurar limites financeiros nos três provedores.
 - [ ] Implementar painel interno de consumo do R2.
@@ -150,4 +174,3 @@ Nunca criar retry infinito. Toda operação externa deve ter número máximo de 
 - [ ] Testar o comportamento quando cada fornecedor retorna limite ou indisponibilidade.
 - [ ] Documentar responsáveis, cartões, datas de renovação e procedimento de cancelamento.
 - [ ] Revisar preços oficiais e atualizar a data no topo deste arquivo.
-

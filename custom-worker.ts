@@ -25,10 +25,10 @@ export default {
 
     if (!response.ok) {
       console.error(JSON.stringify({
-        event: "publication_scheduled_handler_failed",
+        event: "operational_scheduled_handler_failed",
         status: response.status,
       }));
-      throw new Error("publication_scheduled_handler_failed");
+      throw new Error("operational_scheduled_handler_failed");
     }
   },
 } satisfies ExportedHandler<VohaCloudflareEnv>;

@@ -25,6 +25,11 @@ const publicationEngineEnvSchema = z.object({
   VOHA_CRON_SECRET: z.string().min(32),
 });
 
+const notificationEmailEnvSchema = z.object({
+  NEXT_PUBLIC_APP_URL: z.url().optional(),
+  ALERT_EMAIL_FROM: z.email().optional(),
+});
+
 export function getSupabaseAdminEnv() {
   return supabaseAdminEnvSchema.parse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -53,5 +58,12 @@ export function getInstagramEnv() {
 export function getPublicationEngineEnv() {
   return publicationEngineEnvSchema.parse({
     VOHA_CRON_SECRET: process.env.VOHA_CRON_SECRET,
+  });
+}
+
+export function getNotificationEmailEnv() {
+  return notificationEmailEnvSchema.parse({
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || undefined,
+    ALERT_EMAIL_FROM: process.env.ALERT_EMAIL_FROM || undefined,
   });
 }
