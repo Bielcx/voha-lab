@@ -190,6 +190,7 @@ async function loadPublication(claim: PublicationClaim) {
 }
 
 async function processClaim(claim: PublicationClaim) {
+  const startedAt = Date.now();
   let admin = createAdminClient();
   let publishDispatched = false;
   try {
@@ -224,6 +225,13 @@ async function processClaim(claim: PublicationClaim) {
         firstCommentPending: Boolean(publication.post.first_comment.trim()),
       },
     });
+    console.log(JSON.stringify({
+      event: "instagram_publication_succeeded",
+      postId: claim.post_id,
+      attemptId: claim.attempt_id,
+      attempt: claim.attempt_number,
+      durationMs: Date.now() - startedAt,
+    }));
     return { postId: claim.post_id, status: "published" as const };
   } catch (error) {
     const knownError = error instanceof InstagramPublishingError || error instanceof PublicationEngineError;
@@ -253,6 +261,8 @@ async function processClaim(claim: PublicationClaim) {
       attemptId: claim.attempt_id,
       code,
       retryable,
+      attempt: claim.attempt_number,
+      durationMs: Date.now() - startedAt,
     }));
     return { postId: claim.post_id, status: "failed" as const, code, retryable };
   }

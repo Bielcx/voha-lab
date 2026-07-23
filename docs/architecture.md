@@ -72,14 +72,19 @@ tentativa abandonada antes de `media_publish` pode ser repetida; depois que a
 chamada final foi despachada, o Voha exige conferência manual para não duplicar o
 post caso a resposta tenha se perdido.
 
+## Alertas e observabilidade
+
+Falhas finais de publicação geram uma linha RLS-protegida em `notifications` na
+mesma transação do estado `failed`. O Cron também deduplica alertas de conexão
+expirando e processa uma outbox de e-mails críticos com até três tentativas.
+
+A interface consulta somente as notificações do usuário autenticado. O envio
+externo usa o binding `EMAIL` da Cloudflare e fica desabilitado enquanto
+`ALERT_EMAIL_FROM` não estiver configurado. Logs estruturados correlacionam Cron,
+tentativa de publicação e e-mail por IDs internos, sem registrar credenciais.
+
 ## Próximas integrações
 
-1. Concluir e validar o fluxo de mídias da issue #3.
-2. Implementar gestão real de clientes (#5).
-3. Conectar contas profissionais pela Meta (#6).
-4. Persistir o criador de conteúdo e os rascunhos (#7).
-5. Conectar calendário, dashboard e histórico (#4).
-6. Adicionar aprovação externa (#11).
-7. Integrar publicação e agendamento pela Meta (#9).
-8. Adicionar alertas e observabilidade (#10).
-9. Executar hardening e lançar o MVP (#8).
+1. Concluir alertas e observabilidade (#10).
+2. Adicionar aprovação externa (#11).
+3. Executar hardening e lançar o MVP (#8).

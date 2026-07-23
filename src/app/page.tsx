@@ -2,7 +2,6 @@
 
 import {
   AlertCircle,
-  Bell,
   CalendarDays,
   Check,
   ChevronDown,
@@ -38,6 +37,7 @@ import type { WorkspaceBootstrapResult, WorkspaceClientSummary } from "@/lib/typ
 import { MediaLibrary } from "@/components/media-library";
 import { ClientManagement } from "@/components/client-management";
 import { ContentCreator } from "@/components/content-creator";
+import { NotificationCenter } from "@/components/notification-center";
 
 type View = "dashboard" | "calendar" | "creator" | "clients" | "media" | "history" | "settings";
 
@@ -127,7 +127,7 @@ function Sidebar({ active, setActive, open, onClose, onLogout, onAddClient, clie
   );
 }
 
-function Topbar({ active, onMenu, onCreate, dark, setDark }: { active: View; onMenu: () => void; onCreate: () => void; dark: boolean; setDark: (dark: boolean) => void }) {
+function Topbar({ active, onMenu, onCreate, dark, setDark, onNotificationNavigate, notificationsEnabled }: { active: View; onMenu: () => void; onCreate: () => void; dark: boolean; setDark: (dark: boolean) => void; onNotificationNavigate: (view: "calendar" | "clients") => void; notificationsEnabled: boolean }) {
   const titles: Record<View, string> = { dashboard: "Visão geral", calendar: "Calendário", creator: "Novo conteúdo", clients: "Clientes", media: "Biblioteca", history: "Histórico", settings: "Configurações" };
   return (
     <header className="topbar">
@@ -135,7 +135,7 @@ function Topbar({ active, onMenu, onCreate, dark, setDark }: { active: View; onM
       <div className="topbar-actions">
         <button className="search-button"><Search size={16} /><span>Buscar no Voha</span><kbd><Command size={11} /> K</kbd></button>
         <button className={`icon-button theme-toggle ${dark ? "is-dark" : ""}`} onClick={() => setDark(!dark)} aria-pressed={dark} aria-label={dark ? "Ativar modo claro" : "Ativar modo escuro"}><span>{dark ? <Sun size={18} /> : <Moon size={18} />}</span></button>
-        <button className="icon-button notification-button" aria-label="Notificações"><Bell size={18} /><i /></button>
+        <NotificationCenter enabled={notificationsEnabled} onNavigate={onNotificationNavigate} />
         <button className="primary-button top-create" onClick={onCreate}><Plus size={16} /> Criar post</button>
       </div>
     </header>
@@ -438,5 +438,5 @@ export default function HomePage() {
   }
 
   const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <ContentCreator initialPost={editingPost} clients={workspaceClients} onDraftSaved={() => setPostsVersion((version) => version + 1)} onScheduled={handleScheduled} registerBeforeLeave={registerCreatorBeforeLeave} /> : active === "clients" ? <ClientManagement key={createClientRequest} clients={workspaceClients} backendEnabled={isSupabaseConfigured()} onClientsChange={setWorkspaceClients} onOpenCalendar={() => navigate("calendar")} onNotice={setNotice} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} />;
-  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} onAddClient={openNewClient} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} onDeleted={handleDeleted} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
+  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} onAddClient={openNewClient} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} onNotificationNavigate={(view) => void navigate(view)} notificationsEnabled={isSupabaseConfigured()} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} onDeleted={handleDeleted} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
 }

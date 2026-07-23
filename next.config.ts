@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+initOpenNextCloudflareForDev();
 
 const r2Hostname = process.env.R2_ACCOUNT_ID
   ? `${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
