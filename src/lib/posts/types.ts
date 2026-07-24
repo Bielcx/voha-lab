@@ -18,6 +18,15 @@ export type OperationalPostMedia = {
   url: string;
 };
 
+export type PostApprovalSummary = {
+  id: string;
+  status: "pending" | "approved" | "changes_requested" | "expired" | "revoked";
+  approverName: string | null;
+  expiresAt: string;
+  respondedAt: string | null;
+  comment: string | null;
+};
+
 export type OperationalPost = {
   id: string;
   clientId: string;
@@ -37,6 +46,7 @@ export type OperationalPost = {
   thumbnailUrl: string | null;
   mediaName: string | null;
   media: OperationalPostMedia[];
+  approval: PostApprovalSummary | null;
 };
 
 export type PostListResponse = {

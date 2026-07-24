@@ -24,6 +24,12 @@ type PostMediaRelation = {
   media_assets: MediaRelation | MediaRelation[] | null;
 };
 
+type ApprovalRelation = {
+  status: "pending" | "approved" | "changes_requested";
+  revoked_at: string | null;
+  created_at: string;
+};
+
 function firstRelation<T>(relation: T | T[] | null | undefined) {
   return Array.isArray(relation) ? (relation[0] ?? null) : (relation ?? null);
 }
@@ -53,7 +59,7 @@ export async function POST(
 
   const { data, error } = await access.supabase
     .from("posts")
-    .select("id, client_id, format, status, publication_cycle, post_media(position, media_assets(id, kind, mime_type, status, deleted_at))")
+    .select("id, client_id, format, status, publication_cycle, post_media(position, media_assets(id, kind, mime_type, status, deleted_at)), post_approvals(status, revoked_at, created_at)")
     .eq("id", id)
     .eq("workspace_id", access.workspaceId)
     .is("deleted_at", null)
@@ -63,8 +69,14 @@ export async function POST(
     return NextResponse.json({ error: "Não foi possível validar a publicação." }, { status: 500 });
   }
   if (!data) return NextResponse.json({ error: "Publicação não encontrada." }, { status: 404 });
-  if (data.status !== "draft" && data.status !== "failed") {
-    return NextResponse.json({ error: "Somente rascunhos ou publicações com falha podem ser agendados." }, { status: 409 });
+  if (data.status !== "draft" && data.status !== "failed" && data.status !== "pending_approval") {
+    return NextResponse.json({ error: "Esta publicação não pode ser agendada agora." }, { status: 409 });
+  }
+  const latestApproval = [...((data.post_approvals ?? []) as ApprovalRelation[])].sort(
+    (left, right) => right.created_at.localeCompare(left.created_at),
+  )[0] ?? null;
+  if (data.status === "pending_approval" && (latestApproval?.status !== "approved" || latestApproval.revoked_at)) {
+    return NextResponse.json({ error: "Aguarde a aprovação antes de agendar este conteúdo." }, { status: 409 });
   }
 
   const { data: account, error: accountError } = await access.supabase
@@ -112,7 +124,7 @@ export async function POST(
     })
     .eq("id", id)
     .eq("workspace_id", access.workspaceId)
-    .in("status", ["draft", "failed"])
+    .in("status", ["draft", "failed", "pending_approval"])
     .select("id")
     .maybeSingle();
 

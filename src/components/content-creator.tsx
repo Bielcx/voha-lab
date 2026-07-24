@@ -25,11 +25,13 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  UserCheck,
   Video,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ApprovalRequestDialog } from "@/components/approval-request-dialog";
 import { isSupabaseConfigured } from "@/lib/env/public";
 import { formatAllowsMedia, formatMediaLimit } from "@/lib/posts/draft";
 import type { MediaAssetSummary } from "@/lib/media/types";
@@ -88,12 +90,14 @@ export function ContentCreator({
   clients,
   onDraftSaved,
   onScheduled,
+  onApprovalRequested,
   registerBeforeLeave,
 }: {
   initialPost?: OperationalPost | null;
   clients: WorkspaceClientSummary[];
   onDraftSaved?: () => void;
   onScheduled?: (result: SchedulePostResponse) => void;
+  onApprovalRequested?: () => void;
   registerBeforeLeave?: (handler: (() => Promise<boolean>) | null) => void;
 }) {
   const backendEnabled = isSupabaseConfigured();
@@ -114,6 +118,7 @@ export function ContentCreator({
   const [loadError, setLoadError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState("");
+  const [approvalOpen, setApprovalOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleMode, setScheduleMode] = useState<"now" | "schedule">("now");
   const [scheduledLocal, setScheduledLocal] = useState(() => {
@@ -361,6 +366,17 @@ export function ContentCreator({
     markChanged();
   }
 
+  async function openApprovalRequest() {
+    setSaveError("");
+    const saved = await saveDraft();
+    const postId = draftIdRef.current;
+    if (!saved || !postId) {
+      setSaveError("Salve o rascunho antes de enviar para aprovação.");
+      return;
+    }
+    setApprovalOpen(true);
+  }
+
   async function schedulePost() {
     setScheduling(true);
     setScheduleError("");
@@ -477,6 +493,7 @@ export function ContentCreator({
         <div className="composer-footer">
           <span className="autosave-note">O rascunho é salvo automaticamente</span>
           <button className="secondary-button" disabled={saveState === "saving" || !effectiveClientId} onClick={() => void saveDraft()}>{saveState === "saving" ? <LoaderCircle className="spin" size={15} /> : <Check size={15} />} Salvar agora</button>
+          {initialPost?.status !== "failed" ? <button className="secondary-button approval-button" disabled={saveState === "saving" || !effectiveClientId || selectedMedia.length === 0} onClick={() => void openApprovalRequest()}><UserCheck size={16} /> Enviar para aprovação</button> : null}
           <button className="primary-button" disabled={saveState === "saving" || !effectiveClientId || selectedMedia.length === 0} onClick={() => { setScheduleError(""); setScheduleOpen(true); }}><Send size={16} /> Continuar</button>
         </div>
       </section>
@@ -524,6 +541,24 @@ export function ContentCreator({
             <footer><button className="secondary-button" disabled={scheduling} onClick={() => setScheduleOpen(false)}>Voltar</button><button className="primary-button" disabled={scheduling || (scheduleMode === "schedule" && !scheduledLocal)} onClick={() => void schedulePost()}>{scheduling ? <LoaderCircle className="spin" size={16} /> : scheduleMode === "now" ? <Send size={16} /> : <CalendarClock size={16} />}{scheduling ? "Validando…" : scheduleMode === "now" ? "Publicar agora" : "Confirmar agendamento"}</button></footer>
           </section>
         </div>
+      ) : null}
+
+      {approvalOpen && draftId ? (
+        <ApprovalRequestDialog
+          postId={draftId}
+          onCreated={() => {
+            dirtyRef.current = false;
+          }}
+          onClose={(completed) => {
+            setApprovalOpen(false);
+            if (completed) {
+              if (onApprovalRequested) onApprovalRequested();
+              else {
+                window.location.reload();
+              }
+            }
+          }}
+        />
       ) : null}
     </main>
   );
