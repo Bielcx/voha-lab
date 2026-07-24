@@ -11,7 +11,7 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv --strict-vars false cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/media/policy.test.ts src/lib/posts/dates.test.ts src/lib/posts/draft.test.ts src/lib/posts/scheduling.test.ts src/lib/clients/form.test.ts src/lib/instagram/crypto.test.ts src/lib/instagram/publishing.test.ts src/lib/notifications/policy.test.ts",
+    "test": "tsx --test src/lib/media/policy.test.ts src/lib/posts/dates.test.ts src/lib/posts/draft.test.ts src/lib/posts/scheduling.test.ts src/lib/clients/form.test.ts src/lib/instagram/crypto.test.ts src/lib/instagram/publishing.test.ts src/lib/notifications/policy.test.ts src/lib/approvals/policy.test.ts",
     "test:notifications:remote": "node --env-file=.env.local scripts/smoke-notifications.mjs --allow-remote"
   },
   "dependencies": {

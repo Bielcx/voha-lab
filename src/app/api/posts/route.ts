@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getApprovalAvailability } from "@/lib/approvals/policy";
 import { requireWorkspaceAccess } from "@/lib/media/access";
 import { validateWorkspaceClient } from "@/lib/media/access";
 import { mediaStorage } from "@/lib/storage/r2";
@@ -49,6 +50,17 @@ type PostMediaRelation = {
   media_assets: MediaRelation | MediaRelation[] | null;
 };
 
+type ApprovalRelation = {
+  id: string;
+  status: "pending" | "approved" | "changes_requested";
+  approver_name: string | null;
+  expires_at: string;
+  responded_at: string | null;
+  revoked_at: string | null;
+  comment: string | null;
+  created_at: string;
+};
+
 type PostRow = {
   id: string;
   client_id: string;
@@ -64,6 +76,7 @@ type PostRow = {
   failure_message: string | null;
   clients: ClientRelation | ClientRelation[] | null;
   post_media: PostMediaRelation[] | null;
+  post_approvals: ApprovalRelation[] | null;
 };
 
 function firstRelation<T>(relation: T | T[] | null | undefined) {
@@ -101,7 +114,7 @@ export async function GET(request: Request) {
   let query = access.supabase
     .from("posts")
     .select(
-      "id, client_id, format, status, caption, first_comment, scheduled_for, published_at, created_at, updated_at, failure_code, failure_message, clients(id, name, instagram_handle, brand_color), post_media(position, media_assets(id, original_name, storage_key, kind))",
+      "id, client_id, format, status, caption, first_comment, scheduled_for, published_at, created_at, updated_at, failure_code, failure_message, clients(id, name, instagram_handle, brand_color), post_media(position, media_assets(id, original_name, storage_key, kind)), post_approvals(id, status, approver_name, expires_at, responded_at, revoked_at, comment, created_at)",
       { count: "exact" },
     )
     .eq("workspace_id", access.workspaceId)
@@ -143,6 +156,9 @@ export async function GET(request: Request) {
         }
       }))).filter((item): item is OperationalPostMedia => Boolean(item));
       const firstMedia = media[0] ?? null;
+      const latestApproval = [...(row.post_approvals ?? [])].sort(
+        (left, right) => right.created_at.localeCompare(left.created_at),
+      )[0] ?? null;
 
       return {
         id: row.id,
@@ -163,6 +179,18 @@ export async function GET(request: Request) {
         thumbnailUrl: firstMedia?.url ?? null,
         mediaName: firstMedia?.originalName ?? null,
         media,
+        approval: latestApproval ? {
+          id: latestApproval.id,
+          status: getApprovalAvailability({
+            status: latestApproval.status,
+            expiresAt: latestApproval.expires_at,
+            revokedAt: latestApproval.revoked_at,
+          }),
+          approverName: latestApproval.approver_name,
+          expiresAt: latestApproval.expires_at,
+          respondedAt: latestApproval.responded_at,
+          comment: latestApproval.comment,
+        } : null,
       };
     }),
   );

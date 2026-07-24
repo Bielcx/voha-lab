@@ -4,12 +4,15 @@ import Image from "next/image";
 import {
   AlertCircle,
   CalendarDays,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock3,
   Copy,
   ImageIcon,
   ListFilter,
+  MessageSquareText,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -27,6 +30,8 @@ import {
   type CSSProperties,
 } from "react";
 
+import { ApprovalRequestDialog } from "@/components/approval-request-dialog";
+import { ApprovedPostScheduler } from "@/components/approved-post-scheduler";
 import {
   addUtcDays,
   createMonthGrid,
@@ -66,6 +71,29 @@ const statusClass: Record<PostStatus, string> = {
   published: "status-published",
   failed: "status-failed",
 };
+
+const approvalCopy = {
+  pending: {
+    title: "Aguardando resposta",
+    description: "O link está ativo e o cliente ainda não respondeu.",
+  },
+  approved: {
+    title: "Conteúdo aprovado",
+    description: "Tudo certo: esta publicação já pode ser agendada.",
+  },
+  changes_requested: {
+    title: "Ajustes solicitados",
+    description: "O conteúdo voltou para rascunho para receber uma nova versão.",
+  },
+  expired: {
+    title: "Link expirado",
+    description: "Gere um novo link de aprovação para continuar.",
+  },
+  revoked: {
+    title: "Link substituído",
+    description: "Este convite foi invalidado por uma solicitação mais recente.",
+  },
+} as const;
 
 const ptDate = new Intl.DateTimeFormat("pt-BR", {
   timeZone: WORKSPACE_TIME_ZONE,
@@ -568,10 +596,15 @@ export function PostDetailModal({ post, onClose, onEdit, onDuplicated, onDeleted
 }) {
   const [duplicating, setDuplicating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
   const [mediaIndex, setMediaIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const visibleMediaIndex = Math.min(mediaIndex, Math.max(0, post.media.length - 1));
   const detailMedia = post.media[visibleMediaIndex] ?? null;
+  const approval = post.approval;
+  const canScheduleApproved = post.status === "pending_approval" && approval?.status === "approved";
+  const canRegenerateApproval = post.status === "pending_approval" && approval?.status !== "approved";
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -618,11 +651,28 @@ export function PostDetailModal({ post, onClose, onEdit, onDuplicated, onDeleted
         <header><div><span className={`status-pill ${statusClass[post.status]}`}><i />{POST_STATUS_LABELS[post.status]}</span><h2 id="post-detail-title">{postTitle(post)}</h2><p>{post.clientName} · {ptDateTime.format(postDate(post))}</p></div><button className="icon-button" onClick={onClose} aria-label="Fechar detalhes"><X size={18} /></button></header>
         {detailMedia ? <><div className="post-detail-media">{detailMedia.kind === "image" ? <Image src={detailMedia.url} alt={detailMedia.originalName} fill sizes="520px" unoptimized /> : <video src={detailMedia.url} controls muted playsInline />}{post.media.length > 1 ? <><button className="carousel-nav previous" onClick={() => setMediaIndex((visibleMediaIndex - 1 + post.media.length) % post.media.length)} aria-label="Ver mídia anterior"><ChevronLeft size={18} /></button><button className="carousel-nav next" onClick={() => setMediaIndex((visibleMediaIndex + 1) % post.media.length)} aria-label="Ver próxima mídia"><ChevronRight size={18} /></button><span className="carousel-count">{visibleMediaIndex + 1}/{post.media.length}</span></> : null}</div>{post.media.length > 1 ? <div className="carousel-dots detail-carousel-dots" aria-label="Mídias do carrossel">{post.media.map((item, index) => <button className={index === visibleMediaIndex ? "active" : ""} key={item.id} onClick={() => setMediaIndex(index)} aria-label={`Ver mídia ${index + 1}`} />)}</div> : null}</> : null}
         <dl><div><dt>Formato</dt><dd>{POST_FORMAT_LABELS[post.format]}</dd></div><div><dt>Fuso horário</dt><dd>São Paulo (GMT-3)</dd></div></dl>
+        {approval ? (
+          <div className={`post-approval-state approval-${approval.status}`}>
+            {approval.status === "approved"
+              ? <CheckCircle2 size={18} />
+              : approval.status === "pending"
+                ? <Clock3 size={18} />
+                : <MessageSquareText size={18} />}
+            <div>
+              <strong>{approvalCopy[approval.status].title}</strong>
+              <p>{approvalCopy[approval.status].description}</p>
+              {approval.approverName ? <small>Revisor: {approval.approverName}</small> : null}
+              {approval.comment ? <blockquote>{approval.comment}</blockquote> : null}
+            </div>
+          </div>
+        ) : null}
         <div className="post-detail-copy"><span>Legenda</span><p>{post.caption || "Sem legenda."}</p>{post.firstComment ? <><span>Primeiro comentário</span><p>{post.firstComment}</p></> : null}</div>
         {post.status === "failed" ? <div className="post-failure"><AlertCircle size={16} /><div><strong>Falha na publicação</strong><p>{post.failureMessage ?? "A plataforma não informou detalhes da falha."}</p></div></div> : null}
         {error ? <p className="inline-error"><AlertCircle size={14} /> {error}</p> : null}
-        <footer>{post.status === "draft" ? <button className="secondary-button danger-button" onClick={() => void deleteDraft()} disabled={deleting}><Trash2 size={15} /> {deleting ? "Excluindo…" : "Excluir rascunho"}</button> : null}{post.status === "draft" || post.status === "failed" ? <button className="secondary-button" onClick={() => onEdit(post)}><Pencil size={15} /> Editar conteúdo</button> : null}<button className="primary-button" onClick={() => void duplicate()} disabled={duplicating}><Copy size={15} /> {duplicating ? "Duplicando…" : "Duplicar como rascunho"}</button></footer>
+        <footer>{post.status === "draft" ? <button className="secondary-button danger-button" onClick={() => void deleteDraft()} disabled={deleting}><Trash2 size={15} /> {deleting ? "Excluindo…" : "Excluir rascunho"}</button> : null}{post.status === "draft" || post.status === "failed" ? <button className="secondary-button" onClick={() => onEdit(post)}><Pencil size={15} /> Editar conteúdo</button> : null}{canRegenerateApproval ? <button className="secondary-button" onClick={() => setApprovalOpen(true)}><Share2 size={15} /> Gerar novo link</button> : null}{canScheduleApproved ? <button className="primary-button" onClick={() => setSchedulerOpen(true)}><CalendarDays size={15} /> Agendar aprovado</button> : null}<button className={canScheduleApproved ? "secondary-button" : "primary-button"} onClick={() => void duplicate()} disabled={duplicating}><Copy size={15} /> {duplicating ? "Duplicando…" : "Duplicar como rascunho"}</button></footer>
       </section>
+      {schedulerOpen ? <ApprovedPostScheduler postId={post.id} onClose={() => setSchedulerOpen(false)} onScheduled={() => window.location.reload()} /> : null}
+      {approvalOpen ? <ApprovalRequestDialog postId={post.id} onCreated={() => undefined} onClose={(completed) => { setApprovalOpen(false); if (completed) window.location.reload(); }} /> : null}
     </div>
   );
 }
