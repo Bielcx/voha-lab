@@ -5,7 +5,10 @@ import {
   requireWorkspaceAccess,
   validateWorkspaceClient,
 } from "@/lib/media/access";
-import { validateUploadCandidate } from "@/lib/media/policy";
+import {
+  validateUploadCandidate,
+  validateWorkspaceUploadCapacity,
+} from "@/lib/media/policy";
 import { mediaStorage } from "@/lib/storage/r2";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +60,33 @@ export async function POST(request: Request) {
       { error: "O cliente selecionado não pertence ao seu workspace." },
       { status: 422 },
     );
+  }
+
+  const { data: usageRows, error: usageError } = await access.supabase
+    .from("media_assets")
+    .select("size_bytes")
+    .eq("workspace_id", access.workspaceId)
+    .is("deleted_at", null)
+    .in("status", ["uploading", "ready"]);
+
+  if (usageError) {
+    return NextResponse.json(
+      { error: "Não foi possível verificar o espaço disponível." },
+      { status: 500 },
+    );
+  }
+
+  const currentUsageBytes = (usageRows ?? []).reduce(
+    (total, asset) => total + (asset.size_bytes ?? 0),
+    0,
+  );
+  const capacity = validateWorkspaceUploadCapacity(
+    currentUsageBytes,
+    parsed.data.sizeBytes,
+  );
+
+  if (!capacity.valid) {
+    return NextResponse.json({ error: capacity.error }, { status: 413 });
   }
 
   try {

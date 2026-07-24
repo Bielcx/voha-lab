@@ -89,7 +89,38 @@ function Avatar({ name, color = "#B66A3C", size = "md" }: { name: string; color?
   return <span className={`avatar avatar-${size}`} style={{ backgroundColor: color }}>{initials}</span>;
 }
 
-function Sidebar({ active, setActive, open, onClose, onLogout, onAddClient, clients }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void; onAddClient: () => void; clients: WorkspaceClientSummary[] }) {
+type WorkspaceIdentity = {
+  workspaceName: string;
+  profileName: string;
+  email: string;
+  timezone: string;
+};
+
+type MediaUsage = {
+  usedBytes: number;
+  limitBytes: number;
+  freeTierBytes: number;
+};
+
+function formatStorageBytes(bytes: number) {
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${Math.round(bytes / 1024 / 1024)} MB`;
+  }
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1).replace(".0", "")} GB`;
+}
+
+function Sidebar({ active, setActive, open, onClose, onLogout, onAddClient, clients, identity, mediaUsage }: { active: View; setActive: (view: View) => void; open: boolean; onClose: () => void; onLogout: () => void; onAddClient: () => void; clients: WorkspaceClientSummary[]; identity: WorkspaceIdentity; mediaUsage: MediaUsage }) {
+  const storagePercent = mediaUsage.limitBytes > 0
+    ? Math.min(100, Math.round((mediaUsage.usedBytes / mediaUsage.limitBytes) * 100))
+    : 0;
+  const storageState = storagePercent >= 95
+    ? "is-critical"
+    : storagePercent >= 85
+      ? "is-high"
+      : storagePercent >= 70
+        ? "is-warning"
+        : "";
+
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="sidebar-head">
@@ -97,8 +128,8 @@ function Sidebar({ active, setActive, open, onClose, onLogout, onAddClient, clie
         <button className="icon-button sidebar-close" onClick={onClose} aria-label="Fechar menu"><X size={18} /></button>
       </div>
       <button className="workspace-switcher">
-        <Avatar name="Larissa Cruz" color="#333238" size="sm" />
-        <span><strong>Larissa Cruz</strong><small>Workspace</small></span>
+        <Avatar name={identity.profileName} color="#333238" size="sm" />
+        <span><strong>{identity.workspaceName}</strong><small>Workspace</small></span>
         <ChevronDown size={14} />
       </button>
       <nav className="main-nav" aria-label="Navegação principal">
@@ -121,7 +152,11 @@ function Sidebar({ active, setActive, open, onClose, onLogout, onAddClient, clie
         <button><CircleHelp size={17} /><span>Ajuda e atalhos</span></button>
         <button className={active === "settings" ? "active" : ""} onClick={() => setActive("settings")}><Settings size={17} /><span>Configurações</span></button>
         <button onClick={onLogout}><LogOut size={17} /><span>Sair</span></button>
-        <div className="storage"><span><ImageIcon size={14} /> Armazenamento</span><small>1,2 GB de 10 GB</small><i><b /></i></div>
+        <div className={`storage ${storageState}`}>
+          <span><ImageIcon size={14} /> Armazenamento</span>
+          <small>{formatStorageBytes(mediaUsage.usedBytes)} de {formatStorageBytes(mediaUsage.limitBytes)} · limite seguro</small>
+          <i><b style={{ width: `${storagePercent}%` }} /></i>
+        </div>
       </div>
     </aside>
   );
@@ -270,8 +305,8 @@ function HistoryView() {
 }
 
 */
-function SettingsView({ dark, setDark }: { dark: boolean; setDark: (dark: boolean) => void }) {
-  return <main className="view settings-view"><div className="page-heading"><div><span className="eyebrow">SEU WORKSPACE</span><h1>Configurações</h1><p>Personalize o Voha e gerencie suas preferências.</p></div></div><div className="settings-layout"><nav><button className="active">Geral</button><button>Notificações</button><button>Publicação</button><button>Equipe</button><button>Plano e cobrança</button></nav><section className="settings-content"><div className="settings-section"><h2>Perfil</h2><p>Suas informações pessoais no workspace.</p><div className="profile-row"><Avatar name="Larissa Cruz" color="#333238" size="lg" /><button className="secondary-button">Alterar foto</button></div><div className="two-fields"><label>Nome completo<input value="Larissa Cruz" readOnly /></label><label>E-mail<input value="larissa@voha.app" readOnly /></label></div></div><div className="settings-section"><h2>Aparência</h2><p>Escolha como o Voha aparece para você.</p><div className="theme-options"><button className={!dark ? "selected" : ""} onClick={() => setDark(false)}><span className="theme-preview light-preview"><i /><b /><b /></span><strong><Sun size={15} /> Claro</strong></button><button className={dark ? "selected" : ""} onClick={() => setDark(true)}><span className="theme-preview dark-preview"><i /><b /><b /></span><strong><Moon size={15} /> Escuro</strong></button></div></div><div className="settings-section"><h2>Fuso horário</h2><p>Usado para todos os agendamentos do workspace.</p><button className="select-field"><span><small>Fuso horário</small><strong>América/São Paulo (GMT-3)</strong></span><ChevronDown size={15} /></button></div></section></div></main>;
+function SettingsView({ dark, setDark, identity }: { dark: boolean; setDark: (dark: boolean) => void; identity: WorkspaceIdentity }) {
+  return <main className="view settings-view"><div className="page-heading"><div><span className="eyebrow">SEU WORKSPACE</span><h1>Configurações</h1><p>Personalize o Voha e gerencie suas preferências.</p></div></div><div className="settings-layout"><nav><button className="active">Geral</button><button>Notificações</button><button>Publicação</button><button>Equipe</button><button>Plano e cobrança</button></nav><section className="settings-content"><div className="settings-section"><h2>Perfil</h2><p>Suas informações pessoais no workspace.</p><div className="profile-row"><Avatar name={identity.profileName} color="#333238" size="lg" /></div><div className="two-fields"><label>Nome completo<input value={identity.profileName} readOnly /></label><label>E-mail<input value={identity.email} readOnly /></label></div></div><div className="settings-section"><h2>Aparência</h2><p>Escolha como o Voha aparece para você.</p><div className="theme-options"><button className={!dark ? "selected" : ""} onClick={() => setDark(false)}><span className="theme-preview light-preview"><i /><b /><b /></span><strong><Sun size={15} /> Claro</strong></button><button className={dark ? "selected" : ""} onClick={() => setDark(true)}><span className="theme-preview dark-preview"><i /><b /><b /></span><strong><Moon size={15} /> Escuro</strong></button></div></div><div className="settings-section"><h2>Fuso horário</h2><p>Usado para todos os agendamentos do workspace.</p><button className="select-field"><span><small>Fuso horário</small><strong>{identity.timezone}</strong></span><ChevronDown size={15} /></button></div></section></div></main>;
 }
 
 function MobileBottomNav({ active, setActive, onMore }: { active: View; setActive: (view: View) => void; onMore: () => void }) {
@@ -295,6 +330,17 @@ export default function HomePage() {
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [workspaceClients, setWorkspaceClients] = useState<WorkspaceClientSummary[]>(() => isSupabaseConfigured() ? [] : demoClients);
+  const [identity, setIdentity] = useState<WorkspaceIdentity>({
+    workspaceName: "Larissa Cruz",
+    profileName: "Larissa Cruz",
+    email: isSupabaseConfigured() ? "" : "demo@voha.local",
+    timezone: "America/Sao_Paulo",
+  });
+  const [mediaUsage, setMediaUsage] = useState<MediaUsage>({
+    usedBytes: 0,
+    limitBytes: 8 * 1024 * 1024 * 1024,
+    freeTierBytes: 10 * 1024 * 1024 * 1024,
+  });
   const [authReady, setAuthReady] = useState(false);
   const [selectedPost, setSelectedPost] = useState<OperationalPost | null>(null);
   const [editingPost, setEditingPost] = useState<OperationalPost | null>(null);
@@ -305,6 +351,14 @@ export default function HomePage() {
 
   const registerCreatorBeforeLeave = useCallback((handler: (() => Promise<boolean>) | null) => {
     creatorBeforeLeaveRef.current = handler;
+  }, []);
+
+  const refreshMediaUsage = useCallback(async () => {
+    if (!isSupabaseConfigured()) return;
+    const response = await fetch("/api/media/usage", { cache: "no-store" });
+    if (!response.ok) return;
+    const result = await response.json() as MediaUsage;
+    setMediaUsage(result);
   }, []);
 
   useEffect(() => {
@@ -337,7 +391,16 @@ export default function HomePage() {
         }
 
         if (response.ok) {
-          await response.json() as WorkspaceBootstrapResult;
+          const bootstrap = await response.json() as WorkspaceBootstrapResult;
+          if (!cancelled) {
+            setIdentity({
+              workspaceName: bootstrap.workspace.name,
+              profileName: bootstrap.profile.fullName,
+              email: bootstrap.profile.email,
+              timezone: bootstrap.workspace.timezone,
+            });
+            setMediaUsage(bootstrap.mediaUsage);
+          }
           const clientsResponse = await fetch("/api/clients");
           const clientsResult = (await clientsResponse.json().catch(() => null)) as { clients?: WorkspaceClientSummary[] } | null;
           if (!cancelled && clientsResponse.ok && clientsResult?.clients) {
@@ -362,6 +425,12 @@ export default function HomePage() {
     const timeout = window.setTimeout(() => setNotice(null), 3600);
     return () => window.clearTimeout(timeout);
   }, [notice]);
+
+  useEffect(() => {
+    const refresh = () => void refreshMediaUsage();
+    window.addEventListener("voha:media-usage-changed", refresh);
+    return () => window.removeEventListener("voha:media-usage-changed", refresh);
+  }, [refreshMediaUsage]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -437,6 +506,6 @@ export default function HomePage() {
     return <main className="auth-loading" aria-label="Validando sua sessão"><span className="login-pixel-heart" aria-hidden="true">{Array.from({ length: 63 }, (_, index) => <i key={index} />)}</span><p>Preparando seu calendário…</p></main>;
   }
 
-  const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <ContentCreator initialPost={editingPost} clients={workspaceClients} onDraftSaved={() => setPostsVersion((version) => version + 1)} onScheduled={handleScheduled} registerBeforeLeave={registerCreatorBeforeLeave} /> : active === "clients" ? <ClientManagement key={createClientRequest} clients={workspaceClients} backendEnabled={isSupabaseConfigured()} onClientsChange={setWorkspaceClients} onOpenCalendar={() => navigate("calendar")} onNotice={setNotice} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} />;
-  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} onAddClient={openNewClient} clients={workspaceClients} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} onNotificationNavigate={(view) => void navigate(view)} notificationsEnabled={isSupabaseConfigured()} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} onDeleted={handleDeleted} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
+  const content = active === "dashboard" ? <DashboardView goTo={navigate} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "calendar" ? <CalendarView clients={workspaceClients} onCreate={() => navigate("creator")} onOpen={setSelectedPost} refreshKey={postsVersion} /> : active === "creator" ? <ContentCreator initialPost={editingPost} clients={workspaceClients} onDraftSaved={() => setPostsVersion((version) => version + 1)} onScheduled={handleScheduled} registerBeforeLeave={registerCreatorBeforeLeave} /> : active === "clients" ? <ClientManagement key={createClientRequest} clients={workspaceClients} backendEnabled={isSupabaseConfigured()} onClientsChange={setWorkspaceClients} onOpenCalendar={() => navigate("calendar")} onNotice={setNotice} /> : active === "media" ? <MediaLibrary clients={workspaceClients} /> : active === "history" ? <HistoryView clients={workspaceClients} onOpen={setSelectedPost} refreshKey={postsVersion} /> : <SettingsView dark={dark} setDark={setDark} identity={identity} />;
+  return <div className={`app-shell ${dark ? "dark" : ""}`}><Sidebar active={active} setActive={navigate} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} onAddClient={openNewClient} clients={workspaceClients} identity={identity} mediaUsage={mediaUsage} />{sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Fechar menu" /> : null}<div className="app-main"><Topbar active={active} onMenu={() => setSidebarOpen(true)} onCreate={() => navigate("creator")} dark={dark} setDark={setDark} onNotificationNavigate={(view) => void navigate(view)} notificationsEnabled={isSupabaseConfigured()} /><div className="view-transition" key={`${active}-${editingPost?.id ?? "new"}`}>{content}</div></div><MobileBottomNav active={active} setActive={navigate} onMore={() => setSidebarOpen(true)} />{selectedPost ? <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} onEdit={editPost} onDuplicated={handleDuplicated} onDeleted={handleDeleted} /> : null}{notice ? <div className="app-toast" role="status"><Check size={15} /> {notice}</div> : null}</div>;
 }

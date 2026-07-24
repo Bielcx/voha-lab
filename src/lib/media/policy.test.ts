@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  WORKSPACE_MEDIA_LIMIT_BYTES,
   canEditMedia,
   isWorkspaceMediaKey,
   validateUploadCandidate,
+  validateWorkspaceUploadCapacity,
 } from "./policy";
 
 test("aceita uma imagem JPEG dentro do limite", () => {
@@ -83,4 +85,22 @@ test("aceita somente chaves da pasta de mídia do workspace", () => {
     ),
     false,
   );
+});
+
+test("bloqueia upload que ultrapassa o limite seguro do workspace", () => {
+  const result = validateWorkspaceUploadCapacity(
+    WORKSPACE_MEDIA_LIMIT_BYTES - 10,
+    11,
+  );
+
+  assert.equal(result.valid, false);
+});
+
+test("aceita upload dentro do limite seguro do workspace", () => {
+  const result = validateWorkspaceUploadCapacity(
+    WORKSPACE_MEDIA_LIMIT_BYTES - 10,
+    10,
+  );
+
+  assert.equal(result.valid, true);
 });

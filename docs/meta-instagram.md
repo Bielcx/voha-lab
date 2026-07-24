@@ -65,7 +65,7 @@ Em **Configuração da API com login do Instagram → Configurar o login da empr
 Instagram**, cadastre exatamente:
 
 ```text
-https://voha-lab.biel-cavalcanti1.workers.dev/api/instagram/callback
+https://voha-lab.com.br/api/instagram/callback
 ```
 
 No fluxo atual, a Meta rejeitou o callback local sem HTTPS. O teste OAuth do MVP
@@ -75,6 +75,23 @@ exata fornecida por ele.
 
 O protocolo, domínio, porta, caminho e barra final precisam coincidir com a URL
 enviada pelo Voha. Cada ambiente deve ter seu próprio `NEXT_PUBLIC_APP_URL`.
+
+URLs públicas para o painel da Meta:
+
+```text
+Política de privacidade:
+https://voha-lab.com.br/privacidade
+
+Retorno de chamada de desautorização:
+https://voha-lab.com.br/api/instagram/deauthorize
+
+Solicitação de exclusão de dados:
+https://voha-lab.com.br/exclusao-de-dados
+```
+
+O callback de desautorização aceita somente `signed_request` com HMAC-SHA256
+válido para o App Secret. Ao receber uma solicitação válida, remove a credencial
+criptografada e marca a conexão como desconectada.
 
 ## Cloudflare
 
@@ -93,6 +110,7 @@ Checklist:
 - [x] Aplicar a migration `202607200001_instagram_account_per_client.sql`.
 - [x] Preencher as três variáveis localmente, sem compartilhar os valores.
 - [x] Cadastrar a redirect URI de produção na Meta.
+- [ ] Cadastrar e validar as três URLs públicas no painel da Meta após o deploy.
 - [x] Conectar a conta da Larissa a um cliente pelo botão do Voha.
 - [x] Confirmar que o card mostra o `@usuario` e o estado **Instagram conectado**.
 - [ ] Confirmar que a interface classifica o token próximo do vencimento como
@@ -140,7 +158,11 @@ Validação real concluída em 22 de julho de 2026 com a conta testadora:
 Para contas que não pertencem aos administradores/desenvolvedores/testadores do
 app, a Meta exige Advanced Access e análise do app. Antes de enviar:
 
-- configurar domínio, política de privacidade e URL de exclusão de dados;
+- [x] preparar domínio, política de privacidade, desautorização e exclusão;
+- [ ] criar um portfólio empresarial próprio do Voha e associar o app;
+- [ ] concluir Business Verification e a verificação de acesso, se solicitada;
+- [ ] solicitar Advanced Access para `instagram_business_basic` e
+  `instagram_business_content_publish`;
 - gravar um vídeo mostrando login, escolha do cliente e publicação;
 - explicar de forma objetiva por que cada permissão é necessária;
 - fornecer credenciais e instruções reproduzíveis para o revisor;

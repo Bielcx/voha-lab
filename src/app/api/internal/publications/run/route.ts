@@ -7,6 +7,7 @@ import {
   deliverPendingNotificationEmails,
   generateConnectionExpiringNotifications,
 } from "@/lib/notifications/service";
+import { runOperationalMaintenance } from "@/lib/operations/maintenance";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export async function POST(request: Request) {
   }
 
   const runId = crypto.randomUUID();
+  const maintenanceRequested =
+    new URL(request.url).searchParams.get("maintenance") === "1";
   const startedAt = Date.now();
   let stage = "publications";
   try {
@@ -26,6 +29,10 @@ export async function POST(request: Request) {
     const connectionNotifications = await generateConnectionExpiringNotifications();
     stage = "notification_emails";
     const email = await deliverPendingNotificationEmails(3);
+    stage = "maintenance";
+    const maintenance = maintenanceRequested
+      ? await runOperationalMaintenance()
+      : null;
     console.log(JSON.stringify({
       event: "operational_cron_completed",
       runId,
@@ -38,6 +45,7 @@ export async function POST(request: Request) {
       emailsClaimed: email.claimed,
       emailsSent: email.sent,
       emailsFailed: email.failed,
+      maintenance,
     }));
     return NextResponse.json({
       runId,
@@ -51,6 +59,7 @@ export async function POST(request: Request) {
         sent: email.sent,
         failed: email.failed,
       },
+      maintenance,
     });
   } catch {
     console.error(JSON.stringify({

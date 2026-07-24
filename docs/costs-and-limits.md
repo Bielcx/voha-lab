@@ -108,11 +108,13 @@ Acima da franquia: US$ 0,015/GB-mês, US$ 4,50 por milhão de operações Classe
 
 O R2 é hoje o maior risco de cobrança automática porque já possui cartão e aceita excedente. A proteção principal será também feita dentro do Voha:
 
-- bloquear novos uploads quando o workspace chegar a 8 GB;
-- alertar em 7 GB, 8,5 GB e 9,5 GB;
+- [x] bloquear novos uploads quando o workspace chegar a 8 GB;
+- [x] mostrar atenção em 70%, alerta alto em 85% e crítico em 95% do limite
+  interno de 8 GB;
 - limitar tamanho por imagem, vídeo e Reel;
 - impedir uploads duplicados por checksum;
-- excluir uploads incompletos e mídias removidas após período de segurança;
+- [x] excluir uploads incompletos após 24 horas e remover imediatamente do R2
+  mídias excluídas pelo usuário;
 - monitorar operações A/B para detectar loops de upload ou leitura;
 - conferir mensalmente Billing e R2 Usage no painel Cloudflare.
 
@@ -135,7 +137,7 @@ Antes do lançamento documentaremos a versão utilizada, permissões, limites, p
 
 | Serviço | Possível custo | Decisão necessária |
 | --- | --- | --- |
-| Domínio próprio | renovação anual e possível transferência | Comparar registrador antes da compra. |
+| Domínio próprio | renovação anual no Registro.br | `voha-lab.com.br` comprado e conectado ao Cloudflare. |
 | E-mail transacional | gratuito para destino verificado; Workers Paid para arbitrários | Cloudflare Email Service escolhido; falta configurar domínio e remetente. |
 | Monitoramento de erros | plano mensal ou excedente de eventos | Avaliar Sentry/alternativa somente após logs internos. |
 | Backups avançados | Supabase Pro/PITR ou armazenamento externo | Definir antes de clientes reais. |
@@ -169,7 +171,7 @@ Nunca criar retry infinito. Toda operação externa deve ter número máximo de 
 - [ ] Confirmar que Workers Free atende ao volume ou aprovar explicitamente Workers Paid.
 - [ ] Decidir Supabase Free versus Pro considerando pausa e ausência de backup automático.
 - [ ] Configurar limites financeiros nos três provedores.
-- [ ] Implementar painel interno de consumo do R2.
+- [x] Exibir consumo de mídia calculado pelo Supabase e bloquear em 8 GB.
 - [ ] Implementar alertas de cota, falha de publicação e token expirando.
 - [ ] Testar o comportamento quando cada fornecedor retorna limite ou indisponibilidade.
 - [ ] Documentar responsáveis, cartões, datas de renovação e procedimento de cancelamento.

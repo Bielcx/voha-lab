@@ -11,19 +11,19 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv --strict-vars false cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/media/policy.test.ts src/lib/posts/dates.test.ts src/lib/posts/draft.test.ts src/lib/posts/scheduling.test.ts src/lib/clients/form.test.ts src/lib/instagram/crypto.test.ts src/lib/instagram/publishing.test.ts src/lib/notifications/policy.test.ts src/lib/approvals/policy.test.ts",
+    "test": "tsx --test src/lib/media/policy.test.ts src/lib/posts/dates.test.ts src/lib/posts/draft.test.ts src/lib/posts/scheduling.test.ts src/lib/clients/form.test.ts src/lib/instagram/crypto.test.ts src/lib/instagram/signed-request.test.ts src/lib/instagram/publishing.test.ts src/lib/notifications/policy.test.ts src/lib/approvals/policy.test.ts",
     "test:notifications:remote": "node --env-file=.env.local scripts/smoke-notifications.mjs --allow-remote"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",
     "@aws-sdk/s3-request-presigner": "^3.1086.0",
-    "@opennextjs/cloudflare": "^1.20.1",
+    "@opennextjs/cloudflare": "^1.20.2",
     "@supabase/ssr": "^0.12.1",
     "@supabase/supabase-js": "^2.110.5",
     "lucide-react": "^1.24.0",
-    "next": "16.2.10",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "^16.2.11",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
@@ -33,11 +33,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "^16.2.11",
     "supabase": "^2.109.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5",
-    "wrangler": "^4.111.0"
+    "wrangler": "^4.114.0"
   }
 }

@@ -454,6 +454,7 @@ export function MediaLibrary({
           );
         }
 
+        window.dispatchEvent(new Event("voha:media-usage-changed"));
         updateTask(taskId, { status: "ready", progress: 100 });
       } catch (uploadError) {
         if (assetId) {
@@ -524,6 +525,7 @@ export function MediaLibrary({
         );
       }
       setItems((current) => current.filter((media) => media.id !== item.id));
+      window.dispatchEvent(new Event("voha:media-usage-changed"));
     } catch (deleteError) {
       setError(
         deleteError instanceof Error

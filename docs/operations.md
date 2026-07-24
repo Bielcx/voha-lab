@@ -12,6 +12,9 @@ O Cron Trigger executa a cada minuto e, na mesma chamada autenticada:
 4. envia pelo binding nativo `EMAIL` da Cloudflare;
 5. registra métricas estruturadas sem tokens, URLs assinadas ou mensagens brutas de provedores.
 
+Uma segunda agenda, às 03:17 UTC, executa a manutenção diária: remove do R2
+uploads não confirmados há mais de 24 horas e aplica a retenção das notificações.
+
 Uma falha final de publicação cria a notificação na mesma transação que altera o
 post para `failed`. Falhas intermediárias com retry agendado não geram alerta para
 evitar ruído. Cada ciclo de publicação pode gerar no máximo um alerta.
@@ -52,6 +55,7 @@ Procure estes eventos em **Workers > Observability > Logs**:
 | `instagram_publication_failed` | tentativa encerrada | `postId`, `attemptId`, código, retry |
 | `notification_email_sent` | e-mail aceito | `notificationId`, tentativa |
 | `notification_email_failed` | envio recusado | `notificationId`, código sanitizado, retry |
+| `stale_media_cleanup_failed` | upload abandonado não pôde ser removido | `mediaAssetId` |
 
 Use `runId`, `postId`, `attemptId` ou `notificationId` para correlacionar eventos.
 Os logs nunca devem incluir `access_token`, App Secret, chave R2, endereço de
@@ -98,8 +102,13 @@ Nunca simule falha alterando uma publicação real ou já publicada.
 - falhas permanentes de e-mail não são tentadas novamente;
 - envio interrompido há mais de 15 minutos pode ser retomado e, raramente, gerar
   um e-mail duplicado;
-- notificações permanecem no banco até definirmos a política de retenção no
-  hardening do MVP.
+- notificações lidas e e-mails finalizados são removidos após 90 dias;
+- notificações não lidas permanecem por até 360 dias;
+- notificações com envio pendente ou em andamento não são removidas;
+- uploads que não forem confirmados em 24 horas são removidos do R2 e marcados
+  como falhos;
+- posts, aprovações e tentativas de publicação permanecem até exclusão do
+  workspace ou definição de uma política específica para histórico.
 
 Referências: [Email Service](https://developers.cloudflare.com/email-service/),
 [preços de e-mail](https://developers.cloudflare.com/email-service/platform/pricing/)
