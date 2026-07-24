@@ -25,6 +25,9 @@ export type AllowedMediaType = keyof typeof MEDIA_TYPE_CONFIG;
 export type MediaKind = (typeof MEDIA_TYPE_CONFIG)[AllowedMediaType]["kind"];
 export type WorkspaceRole = "owner" | "editor" | "approver";
 
+export const R2_FREE_TIER_STORAGE_BYTES = 10 * 1024 * 1024 * 1024;
+export const WORKSPACE_MEDIA_LIMIT_BYTES = 8 * 1024 * 1024 * 1024;
+
 export type UploadCandidate = {
   fileName: string;
   contentType: string;
@@ -97,6 +100,29 @@ export function validateUploadCandidate(
 
 export function canEditMedia(role: string): role is "owner" | "editor" {
   return role === "owner" || role === "editor";
+}
+
+export function validateWorkspaceUploadCapacity(
+  currentUsageBytes: number,
+  candidateSizeBytes: number,
+) {
+  if (
+    !Number.isSafeInteger(currentUsageBytes)
+    || currentUsageBytes < 0
+    || !Number.isSafeInteger(candidateSizeBytes)
+    || candidateSizeBytes <= 0
+  ) {
+    return { valid: false as const, error: "Não foi possível validar o espaço disponível." };
+  }
+
+  if (currentUsageBytes + candidateSizeBytes > WORKSPACE_MEDIA_LIMIT_BYTES) {
+    return {
+      valid: false as const,
+      error: "O limite seguro de 8 GB foi atingido. Exclua mídias antes de enviar novos arquivos.",
+    };
+  }
+
+  return { valid: true as const };
 }
 
 export function isWorkspaceMediaKey(key: string, workspaceId: string) {

@@ -14,5 +14,18 @@ export type WorkspaceClientSummary = {
 
 export type WorkspaceBootstrapResult = {
   workspaceId: string;
+  workspace: {
+    name: string;
+    timezone: string;
+  };
+  profile: {
+    fullName: string;
+    email: string;
+  };
+  mediaUsage: {
+    usedBytes: number;
+    limitBytes: number;
+    freeTierBytes: number;
+  };
   clients: WorkspaceClientSummary[];
 };
