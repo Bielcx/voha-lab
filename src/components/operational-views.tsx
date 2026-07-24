@@ -20,6 +20,7 @@ import {
   Share2,
   SlidersHorizontal,
   Trash2,
+  Video,
   X,
 } from "lucide-react";
 import {
@@ -164,9 +165,31 @@ function Avatar({ name, color, size = "sm" }: { name: string; color: string; siz
 }
 
 function Thumbnail({ post, size }: { post: OperationalPost; size: string }) {
-  if (!post.thumbnailUrl) {
-    return <ImageIcon size={18} />;
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const mediaKind = post.media[0]?.kind;
+  const failed = Boolean(post.thumbnailUrl && failedUrl === post.thumbnailUrl);
+
+  if (!post.thumbnailUrl || failed) {
+    return (
+      <span className="thumbnail-fallback" aria-label={failed ? "Mídia indisponível" : undefined}>
+        {mediaKind === "video" ? <Video size={18} /> : <ImageIcon size={18} />}
+      </span>
+    );
   }
+
+  if (mediaKind === "video") {
+    return (
+      <video
+        src={post.thumbnailUrl}
+        aria-label={post.mediaName ?? `Vídeo de ${post.clientName}`}
+        muted
+        playsInline
+        preload="metadata"
+        onError={() => setFailedUrl(post.thumbnailUrl)}
+      />
+    );
+  }
+
   return (
     <Image
       src={post.thumbnailUrl}
@@ -174,6 +197,7 @@ function Thumbnail({ post, size }: { post: OperationalPost; size: string }) {
       fill
       sizes={size}
       unoptimized
+      onError={() => setFailedUrl(post.thumbnailUrl)}
     />
   );
 }
