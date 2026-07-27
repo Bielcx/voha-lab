@@ -1,42 +1,138 @@
+```text
+█   █  ███  █  █  ███
+█   █ █   █ █  █ █   █
+█   █ █   █ ████ █████
+ █ █  █   █ █  █ █   █
+  █    ███  █  █ █   █
+```
+
 # Voha
 
-Plataforma mobile-first de planejamento, aprovação e agendamento de conteúdo para Instagram.
+Planejamento, aprovação, agendamento e publicação de conteúdo no Instagram em
+uma interface mobile-first.
 
-O Voha já possui autenticação, workspace, gestão de clientes, biblioteca de mídias
-e o fluxo seguro de conexão com contas profissionais do Instagram. As telas de
-calendário, criador e histórico ainda usam parte dos dados de demonstração enquanto
-as próximas issues do MVP são implementadas.
+[Acessar o Voha](https://voha-lab.com.br) · [Arquitetura](docs/architecture.md) ·
+[Operação](docs/operations.md) · [Segurança](docs/security-checklist.md)
 
-- Cloudflare Workers: aplicação Next.js e rotas de servidor via OpenNext.
-- Supabase: autenticação, PostgreSQL e Row Level Security.
-- Cloudflare R2: imagens, carrosséis e Reels via URLs assinadas.
+> **Estágio atual:** MVP funcional em piloto controlado. Contas profissionais
+> gerenciadas pela equipe são cadastradas manualmente no App Dashboard da Meta
+> enquanto o Advanced Access não é concluído.
 
-## Desenvolvimento
+## Produto
+
+O calendário é o centro do Voha. A social media organiza clientes, mídias,
+aprovações e publicações sem alternar entre planilhas, pastas e lembretes.
+
+- calendário mensal e semanal com os estados de cada publicação;
+- criação de imagem, carrossel e Reel com preview inspirado no Instagram;
+- biblioteca privada de mídias com imagens e vídeos;
+- legenda, primeiro comentário e fluxo de aprovação por link;
+- publicação imediata ou agendada;
+- histórico de tentativas, falhas e retries;
+- alertas no produto e por e-mail;
+- conexão segura de contas profissionais pelo Instagram Login;
+- interface responsiva, com modo claro e escuro.
+
+## Interface
+
+### Calendário
+
+![Calendário mensal do Voha](docs/assets/voha-calendar-desktop.webp)
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/assets/voha-creator-mobile.webp" alt="Criação e preview de conteúdo no celular" />
+    </td>
+    <td width="50%">
+      <img src="docs/assets/voha-clients-mobile.webp" alt="Gestão de clientes no celular" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Criar e visualizar</strong></td>
+    <td align="center"><strong>Gerenciar clientes</strong></td>
+  </tr>
+</table>
+
+### Demonstração
+
+![Demonstração curta do fluxo do Voha](docs/assets/voha-demo.gif)
+
+## Como funciona
+
+```text
+Social media
+    │
+    ▼
+Next.js 16 no Cloudflare Workers
+    ├── interface mobile-first e rotas de servidor
+    ├── autenticação e dados ───────────────► Supabase
+    ├── imagens, carrosséis e Reels ───────► Cloudflare R2
+    └── OAuth e publicação ────────────────► Instagram API
+```
+
+Cada dado pertence a um workspace protegido por Row Level Security. Arquivos
+ficam em um bucket privado e chegam ao navegador somente por URLs assinadas de
+curta duração. Tokens do Instagram são criptografados com AES-256-GCM antes de
+serem persistidos.
+
+## Stack
+
+| Camada | Tecnologia |
+| --- | --- |
+| Aplicação | Next.js 16, React 19 e TypeScript |
+| Runtime | Cloudflare Workers via OpenNext |
+| Banco e autenticação | Supabase Auth e PostgreSQL com RLS |
+| Mídias | Cloudflare R2 privado |
+| Publicação | Instagram API with Instagram Login |
+| E-mail | Cloudflare Email Service |
+
+## Executar localmente
+
+### Pré-requisitos
+
+- Node.js 20.9 ou superior;
+- projeto Supabase;
+- bucket privado no Cloudflare R2;
+- app configurado no Meta for Developers.
+
+### Instalação
 
 ```bash
+git clone https://github.com/Bielcx/voha-lab.git
+cd voha-lab
 npm install
 copy .env.example .env.local
+npx supabase db push
 npm run dev
 ```
 
-Acesse `http://localhost:3000`. Sem credenciais, o protótipo continua funcionando com os mocks atuais.
+Acesse `http://localhost:3000`. Os fluxos autenticados dependem dos serviços e
+variáveis configurados; segredos nunca devem ser enviados ao navegador ou
+versionados.
 
-## Configuração dos serviços
+## Variáveis de ambiente
 
-1. Crie um projeto no Supabase.
-2. Copie a URL, a chave publicável e a chave secreta para `.env.local`.
-3. Execute a migration em `supabase/migrations` pelo SQL Editor ou pela Supabase CLI.
-4. Crie um bucket privado `voha-media` no Cloudflare R2.
-5. Crie um token R2 limitado a esse bucket e preencha as variáveis restantes.
-6. Configure o CORS do bucket para os domínios local e de produção.
-7. Cadastre as mesmas variáveis no Worker da Cloudflare, separando valores públicos
-   de segredos.
+O arquivo [.env.example](.env.example) contém a lista completa sem valores reais.
 
-Nunca exponha `SUPABASE_SECRET_KEY` ou as credenciais `R2_*` no navegador.
-O mesmo vale para `META_INSTAGRAM_APP_SECRET`, `META_TOKEN_ENCRYPTION_KEY` e tokens
-de acesso do Instagram.
+| Variável | Escopo |
+| --- | --- |
+| `NEXT_PUBLIC_APP_URL` | pública |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | pública |
+| `NEXT_PUBLIC_SUPABASE_URL` | pública |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | pública |
+| `SUPABASE_SECRET_KEY` | servidor |
+| `R2_ACCOUNT_ID` | servidor |
+| `R2_ACCESS_KEY_ID` | servidor |
+| `R2_SECRET_ACCESS_KEY` | servidor |
+| `R2_BUCKET_NAME` | servidor |
+| `META_INSTAGRAM_APP_ID` | servidor |
+| `META_INSTAGRAM_APP_SECRET` | servidor |
+| `META_TOKEN_ENCRYPTION_KEY` | servidor |
+| `VOHA_CRON_SECRET` | servidor |
+| `ALERT_EMAIL_FROM` | servidor, opcional |
 
-## Verificações
+## Qualidade
 
 ```bash
 npm test
@@ -45,12 +141,33 @@ npm run build
 npm run build:cloudflare
 ```
 
-O deploy principal usa Cloudflare Workers Builds conectado ao GitHub. Consulte o
-guia antes de configurar variáveis ou publicar o Worker.
+O deploy de produção usa Cloudflare Workers Builds conectado ao GitHub.
+
+## Roadmap
+
+- validar o onboarding manual da primeira conta profissional gerenciada;
+- concluir o checklist de hardening e lançamento do MVP;
+- formalizar Business Verification e solicitar Advanced Access à Meta quando o
+  onboarding manual deixar de atender à operação;
+- ampliar métricas e insights somente quando houver uma necessidade real do
+  fluxo de trabalho.
 
 ## Documentação
 
 - [Arquitetura e modelo de dados](docs/architecture.md)
-- [Custos, limites, alertas e continuidade](docs/costs-and-limits.md)
 - [Deploy na Cloudflare](docs/cloudflare-deployment.md)
-- [Instagram API, OAuth e App Review](docs/meta-instagram.md)
+- [Operação, alertas e diagnóstico](docs/operations.md)
+- [Instagram API e OAuth](docs/meta-instagram.md)
+- [Preparação para o App Review](docs/meta-app-review.md)
+- [Custos, limites e continuidade](docs/costs-and-limits.md)
+- [Checklist de segurança](docs/security-checklist.md)
+- [Runbook de lançamento e rollback](docs/launch-runbook.md)
+
+## Privacidade
+
+O Voha solicita apenas permissões necessárias ao fluxo implementado. Credenciais,
+tokens, URLs assinadas e dados de clientes não devem aparecer em issues, logs,
+screenshots ou commits.
+
+- [Política de privacidade](https://voha-lab.com.br/privacidade)
+- [Exclusão de dados](https://voha-lab.com.br/exclusao-de-dados)

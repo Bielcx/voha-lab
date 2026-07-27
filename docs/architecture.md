@@ -83,8 +83,13 @@ externo usa o binding `EMAIL` da Cloudflare e fica desabilitado enquanto
 `ALERT_EMAIL_FROM` não estiver configurado. Logs estruturados correlacionam Cron,
 tentativa de publicação e e-mail por IDs internos, sem registrar credenciais.
 
-## Próximas integrações
+## Estado atual
 
-1. Concluir alertas e observabilidade (#10).
-2. Adicionar aprovação externa (#11).
-3. Executar hardening e lançar o MVP (#8).
+Alertas operacionais, aprovação externa e publicação de imagem, carrossel e Reel
+já fazem parte do MVP. O lançamento permanece em piloto controlado enquanto o
+checklist de hardening é concluído e as contas profissionais gerenciadas são
+adicionadas manualmente ao App Dashboard da Meta.
+
+O Advanced Access será solicitado quando esse onboarding manual deixar de atender
+à operação. Novas permissões de mensagens, comentários ou insights somente serão
+incluídas quando houver uma funcionalidade real que dependa delas.
