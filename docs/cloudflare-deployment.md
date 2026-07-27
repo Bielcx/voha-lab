@@ -73,6 +73,20 @@ Segredos somente de runtime:
 
 Nunca copiar `VERCEL_OIDC_TOKEN` para a Cloudflare. Nunca enviar `.env.local`, `.dev.vars` ou os valores dos segredos ao Git.
 
+## CORS do R2
+
+A política versionada em `config/r2-cors.json` permite o upload direto para o
+bucket privado somente a partir do domínio de produção, do endereço `workers.dev`
+e dos endereços locais suportados. Depois de alterar domínios ou portas, atualize
+o arquivo e reaplique:
+
+```bash
+npx wrangler r2 bucket cors set voha-media --file config/r2-cors.json
+npx wrangler r2 bucket cors list voha-media
+```
+
+Não torne o bucket público nem use `*` em `origins`.
+
 ## Checklist de validação
 
 - [x] Login com a usuária da Larissa.
