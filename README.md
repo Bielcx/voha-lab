@@ -1,12 +1,12 @@
-```text
+<pre align="center">
 █   █  ███  █  █  ███
 █   █ █   █ █  █ █   █
 █   █ █   █ ████ █████
  █ █  █   █ █  █ █   █
   █    ███  █  █ █   █
-```
+</pre>
 
-# Voha
+# 
 
 Planejamento, aprovação, agendamento e publicação de conteúdo no Instagram em
 uma interface mobile-first.
