@@ -26,13 +26,15 @@ import {
 
 import { isSupabaseConfigured } from "@/lib/env/public";
 import {
+  MediaUploadError,
+  uploadMediaFile,
+} from "@/lib/media/browser-upload";
+import {
   formatFileSize,
-  validateUploadCandidate,
 } from "@/lib/media/policy";
 import type {
   MediaAssetSummary,
   MediaListResponse,
-  MediaUploadAuthorization,
 } from "@/lib/media/types";
 import type { WorkspaceClientSummary } from "@/lib/types/workspace";
 
@@ -151,81 +153,6 @@ async function readJson(response: Response) {
   } catch {
     return null;
   }
-}
-
-async function getMediaMetadata(file: File) {
-  const objectUrl = URL.createObjectURL(file);
-
-  try {
-    if (file.type.startsWith("image/")) {
-      return await new Promise<{
-        width: number;
-        height: number;
-        durationMs: null;
-      }>((resolve, reject) => {
-        const image = new window.Image();
-        image.onload = () =>
-          resolve({
-            width: image.naturalWidth,
-            height: image.naturalHeight,
-            durationMs: null,
-          });
-        image.onerror = () => reject(new Error("Não foi possível ler a imagem."));
-        image.src = objectUrl;
-      });
-    }
-
-    return await new Promise<{
-      width: number;
-      height: number;
-      durationMs: number;
-    }>((resolve, reject) => {
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.onloadedmetadata = () =>
-        resolve({
-          width: video.videoWidth,
-          height: video.videoHeight,
-          durationMs: Math.round(video.duration * 1000),
-        });
-      video.onerror = () => reject(new Error("Não foi possível ler o vídeo."));
-      video.src = objectUrl;
-    });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-function uploadToSignedUrl(
-  file: File,
-  uploadUrl: string,
-  onProgress: (progress: number) => void,
-) {
-  return new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader("Content-Type", file.type);
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        onProgress(100);
-        resolve();
-      } else {
-        reject(new Error("O R2 recusou o envio do arquivo."));
-      }
-    };
-    xhr.onerror = () =>
-      reject(
-        new Error(
-          "Não foi possível enviar o arquivo. Confira a conexão e o CORS do bucket.",
-        ),
-      );
-    xhr.send(file);
-  });
 }
 
 function formatCreatedAt(value: string) {
@@ -386,83 +313,31 @@ export function MediaLibrary({
 
   const uploadOne = useCallback(
     async (file: File, taskId: string) => {
-      const validation = validateUploadCandidate({
-        fileName: file.name,
-        contentType: file.type,
-        sizeBytes: file.size,
-      });
-
-      if (!validation.valid) {
-        updateTask(taskId, { status: "failed", error: validation.error });
-        return;
-      }
-
-      let assetId: string | null = null;
-
       try {
-        updateTask(taskId, { status: "uploading", progress: 1 });
-        const metadata = await getMediaMetadata(file);
-        const authorizationResponse = await fetch("/api/media/upload-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            contentType: file.type,
-            sizeBytes: file.size,
-            clientId: uploadClientId || null,
-          }),
+        const uploaded = await uploadMediaFile({
+          file,
+          clientId: uploadClientId || null,
+          onProgress: (progress) => updateTask(taskId, { progress }),
+          onStage: (stage) => {
+            if (stage === "preparing") {
+              updateTask(taskId, { status: "uploading", progress: 0 });
+            } else {
+              updateTask(taskId, {
+                status: stage === "confirming" ? "confirming" : "uploading",
+              });
+            }
+          },
         });
-        const authorizationPayload = await readJson(authorizationResponse);
-
-        if (authorizationResponse.status === 401) {
+        updateTask(taskId, {
+          name: uploaded.file.name,
+          status: "ready",
+          progress: 100,
+        });
+      } catch (uploadError) {
+        if (uploadError instanceof MediaUploadError && uploadError.status === 401) {
           window.location.assign("/login");
           return;
         }
-        if (!authorizationResponse.ok) {
-          throw new Error(
-            getErrorMessage(
-              authorizationPayload,
-              "Não foi possível autorizar o upload.",
-            ),
-          );
-        }
-
-        const authorization =
-          authorizationPayload as MediaUploadAuthorization;
-        assetId = authorization.assetId;
-        await uploadToSignedUrl(file, authorization.uploadUrl, (progress) =>
-          updateTask(taskId, { progress }),
-        );
-
-        updateTask(taskId, { status: "confirming", progress: 100 });
-        const confirmationResponse = await fetch(
-          `/api/media/${authorization.assetId}/confirm`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(metadata),
-          },
-        );
-        const confirmationPayload = await readJson(confirmationResponse);
-
-        if (!confirmationResponse.ok) {
-          throw new Error(
-            getErrorMessage(
-              confirmationPayload,
-              "Não foi possível confirmar a mídia.",
-            ),
-          );
-        }
-
-        window.dispatchEvent(new Event("voha:media-usage-changed"));
-        updateTask(taskId, { status: "ready", progress: 100 });
-      } catch (uploadError) {
-        if (assetId) {
-          await fetch(`/api/media/${assetId}`, { method: "DELETE" }).catch(
-            () => undefined,
-          );
-        }
-
         updateTask(taskId, {
           status: "failed",
           error:
@@ -614,7 +489,7 @@ export function MediaLibrary({
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,video/mp4"
+              accept="image/*,video/mp4,.heic,.heif"
               multiple
               onChange={(event) => {
                 void handleFiles(Array.from(event.target.files ?? []));

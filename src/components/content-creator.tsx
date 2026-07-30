@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  Upload,
   UserCheck,
   Video,
   X,
@@ -33,6 +34,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApprovalRequestDialog } from "@/components/approval-request-dialog";
 import { isSupabaseConfigured } from "@/lib/env/public";
+import {
+  MediaUploadError,
+  uploadMediaFile,
+} from "@/lib/media/browser-upload";
 import { formatAllowsMedia, formatMediaLimit } from "@/lib/posts/draft";
 import type { MediaAssetSummary } from "@/lib/media/types";
 import type {
@@ -114,6 +119,9 @@ export function ContentCreator({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState("");
+  const [deviceUploading, setDeviceUploading] = useState(false);
+  const [deviceUploadProgress, setDeviceUploadProgress] = useState(0);
+  const [deviceUploadError, setDeviceUploadError] = useState("");
   const [loadingDraft, setLoadingDraft] = useState(Boolean(initialPost?.id && backendEnabled));
   const [loadError, setLoadError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -140,6 +148,7 @@ export function ContentCreator({
   const revisionRef = useRef(0);
   const mountedRef = useRef(true);
   const onDraftSavedRef = useRef(onDraftSaved);
+  const deviceInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveClientId = clientId || clients[0]?.id || "";
   const client = clients.find((item) => item.id === effectiveClientId) ?? clients[0] ?? null;
@@ -290,17 +299,20 @@ export function ContentCreator({
     return () => window.clearTimeout(timeout);
   }, [loadingDraft, revision, saveDraft]);
 
-  const loadLibrary = useCallback(async () => {
-    if (!backendEnabled || !effectiveClientId) return;
+  const loadLibrary = useCallback(async (): Promise<MediaAssetSummary[]> => {
+    if (!backendEnabled || !effectiveClientId) return [];
     setLibraryLoading(true);
     setLibraryError("");
     try {
       const response = await fetch(`/api/media?clientId=${encodeURIComponent(effectiveClientId)}&limit=50`, { cache: "no-store" });
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(getErrorMessage(result, "Não foi possível carregar a biblioteca."));
-      setLibraryItems((result as { items: MediaAssetSummary[] }).items);
+      const items = (result as { items: MediaAssetSummary[] }).items;
+      setLibraryItems(items);
+      return items;
     } catch (error) {
       setLibraryError(error instanceof Error ? error.message : "Não foi possível carregar a biblioteca.");
+      return [];
     } finally {
       setLibraryLoading(false);
     }
@@ -317,6 +329,66 @@ export function ContentCreator({
   function openPicker() {
     setPickerOpen(true);
     void loadLibrary();
+  }
+
+  async function handleDeviceFiles(files: File[]) {
+    if (!backendEnabled || !effectiveClientId || files.length === 0) return;
+
+    const availableSlots = formatMediaLimit(format) - selectedMedia.length;
+    const candidates = files.slice(0, availableSlots);
+    if (candidates.length === 0) return;
+
+    setDeviceUploading(true);
+    setDeviceUploadProgress(0);
+    setDeviceUploadError("");
+    const uploadedIds: string[] = [];
+
+    try {
+      for (let index = 0; index < candidates.length; index += 1) {
+        const uploaded = await uploadMediaFile({
+          file: candidates[index],
+          clientId: effectiveClientId,
+          allowedKinds: format === "carousel"
+            ? ["image", "video"]
+            : [format === "reel" ? "video" : "image"],
+          onProgress: (progress) => {
+            const totalProgress = Math.round(
+              ((index + progress / 100) / candidates.length) * 100,
+            );
+            setDeviceUploadProgress(totalProgress);
+          },
+        });
+        uploadedIds.push(uploaded.assetId);
+      }
+
+      const refreshedLibrary = await loadLibrary();
+      const uploadedMedia = uploadedIds
+        .map((id) => refreshedLibrary.find((item) => item.id === id))
+        .filter((item): item is MediaAssetSummary => Boolean(item));
+      if (uploadedMedia.length !== uploadedIds.length) {
+        throw new Error("O upload foi concluído, mas a mídia ainda não apareceu. Abra a biblioteca e tente selecioná-la novamente.");
+      }
+
+      setSelectedMedia((current) => [
+        ...current,
+        ...uploadedMedia.map(toDraftMedia),
+      ].slice(0, formatMediaLimit(format)));
+      setPreviewIndex(selectedMedia.length);
+      markChanged();
+    } catch (error) {
+      if (error instanceof MediaUploadError && error.status === 401) {
+        window.location.assign("/login");
+        return;
+      }
+      setDeviceUploadError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar a mídia.",
+      );
+    } finally {
+      setDeviceUploading(false);
+      if (deviceInputRef.current) deviceInputRef.current.value = "";
+    }
   }
 
   function changeClient(nextClientId: string) {
@@ -476,8 +548,23 @@ export function ContentCreator({
                 </article>
               ))}
             </div>
-          ) : <button className="media-empty" onClick={openPicker}><Library size={20} /><strong>Escolha na biblioteca</strong><span>Imagem, carrossel ou vídeo MP4</span></button>}
-          <button className="upload-inline" disabled={!effectiveClientId || selectedMedia.length >= formatMediaLimit(format)} onClick={openPicker}><Plus size={15} /> {selectedMedia.length ? "Adicionar outra mídia" : "Abrir biblioteca"}</button>
+          ) : <button className="media-empty" disabled={deviceUploading || !effectiveClientId} onClick={() => deviceInputRef.current?.click()}><Upload size={20} /><strong>Tirar foto ou escolher arquivo</strong><span>A mídia será vinculada a {accountName}</span></button>}
+          <div className="creator-media-actions">
+            <label className={`device-upload-button ${deviceUploading ? "is-uploading" : ""}`}>
+              {deviceUploading ? <LoaderCircle className="spin" size={15} /> : <Upload size={15} />}
+              <span>{deviceUploading ? `Enviando ${deviceUploadProgress}%` : "Enviar do dispositivo"}</span>
+              <input
+                ref={deviceInputRef}
+                type="file"
+                accept={format === "reel" ? "video/mp4" : format === "image" ? "image/*,.heic,.heif" : "image/*,video/mp4,.heic,.heif"}
+                multiple={format === "carousel"}
+                disabled={deviceUploading || !effectiveClientId || selectedMedia.length >= formatMediaLimit(format)}
+                onChange={(event) => void handleDeviceFiles(Array.from(event.target.files ?? []))}
+              />
+            </label>
+            <button className="upload-inline" disabled={deviceUploading || !effectiveClientId || selectedMedia.length >= formatMediaLimit(format)} onClick={openPicker}><Plus size={15} /> {selectedMedia.length ? "Adicionar da biblioteca" : "Abrir biblioteca"}</button>
+          </div>
+          {deviceUploadError ? <div className="creator-upload-error"><AlertCircle size={14} /><span>{deviceUploadError}</span></div> : null}
         </div>
 
         <div className="form-section">
@@ -517,7 +604,7 @@ export function ContentCreator({
         <div className="media-picker-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPickerOpen(false); }}>
           <section className="media-picker" role="dialog" aria-modal="true" aria-label="Selecionar mídia">
             <header><div><span className="eyebrow">BIBLIOTECA</span><h2>Escolher mídia</h2><p>{format === "carousel" ? "Selecione até 10 itens na ordem desejada." : `Selecione ${format === "reel" ? "um vídeo MP4" : "uma imagem"}.`}</p></div><button className="icon-button" onClick={() => setPickerOpen(false)} aria-label="Fechar biblioteca"><X size={18} /></button></header>
-            {libraryLoading ? <div className="media-picker-state"><LoaderCircle className="spin" size={22} />Carregando biblioteca…</div> : libraryError ? <button className="media-picker-state error" onClick={() => void loadLibrary()}><AlertCircle size={20} />{libraryError}<span>Tentar novamente</span></button> : compatibleLibrary.length === 0 ? <div className="media-picker-state"><ImageIcon size={24} /><strong>Nenhuma mídia compatível</strong><span>Envie arquivos na Biblioteca para usá-los aqui.</span></div> : <div className="media-picker-grid">{compatibleLibrary.map((item) => {
+            {libraryLoading ? <div className="media-picker-state"><LoaderCircle className="spin" size={22} />Carregando biblioteca…</div> : libraryError ? <button className="media-picker-state error" onClick={() => void loadLibrary()}><AlertCircle size={20} />{libraryError}<span>Tentar novamente</span></button> : compatibleLibrary.length === 0 ? <div className="media-picker-state"><ImageIcon size={24} /><strong>Nenhuma mídia compatível</strong><span>Use “Enviar do dispositivo” para adicionar a primeira.</span></div> : <div className="media-picker-grid">{compatibleLibrary.map((item) => {
               const index = selectedMedia.findIndex((selected) => selected.id === item.id);
               const disabled = index < 0 && selectedMedia.length >= formatMediaLimit(format);
               return <button key={item.id} className={index >= 0 ? "selected" : ""} disabled={disabled} onClick={() => toggleMedia(item)}>{item.kind === "image" ? <Image src={item.url} alt={item.originalName} fill sizes="180px" unoptimized /> : <video src={item.url} muted playsInline />}<span className="picker-kind">{item.kind === "video" ? <Video size={13} /> : <ImageIcon size={13} />}</span>{index >= 0 ? <span className="picker-order">{index + 1}</span> : null}<small>{item.originalName}</small></button>;
